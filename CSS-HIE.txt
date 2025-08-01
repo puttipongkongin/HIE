@@ -1,104 +1,95 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+
 body {
-    font-family: Arial, sans-serif;
+  font-family: 'Inter', sans-serif;
+  background-color: #f9fafb;
+  color: #333;
+  margin: 0;
+  padding: 0;
+  line-height: 1.6;
 }
 
-.json-output {
-    white-space: pre-wrap;
-    font-family: monospace;
-    background: #f4f4f4;
-    padding: 10px;
-    border-radius: 5px;
-    max-height: 400px;
-    overflow-y: auto;
+h1, h2, h3 {
+  font-weight: 600;
+  color: #1f2937;
 }
 
-table {
-    border-collapse: collapse;
-    width: 100%;
+.container {
+  max-width: 700px;
+  margin: auto;
+  padding: 2rem;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-th, td {
-    border: 1px solid #ddd;
-    padding: 8px;
-    text-align: left;
+input, select, textarea, button {
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  width: 100%;
+  margin-bottom: 1rem;
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-th {
-    background-color: #f2f2f2;
+input:focus, select:focus, textarea:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+  outline: none;
 }
 
-.example-button {
-    background-color: #6b7280; /* Tailwind gray-500 */
-    color: white;
-    padding: 8px 16px;
-    border-radius: 4px;
-    transition: background-color 0.3s ease;
-}
-.example-button:hover {
-    background-color: #4b5563; /* Tailwind gray-600 */
-}
-
-/* Notification messages */
-.status-message {
-    margin-top: 8px;
-    font-weight: 600;
-    padding: 8px;
-    border-radius: 4px;
+button {
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 0.75rem 1.25rem;
+  transition: background-color 0.2s ease;
 }
 
-.status-success {
-    color: #155724;
-    background-color: #d4edda;
-    border: 1px solid #c3e6cb;
+button:hover {
+  background-color: #1d4ed8;
 }
 
-.status-error {
-    color: #721c24;
-    background-color: #f8d7da;
-    border: 1px solid #f5c6cb;
+.hidden {
+  display: none;
 }
 
-/* Responsive adjustments */
-@media (max-width: 640px) {
-    nav .space-x-4, #navTabs button {
-        display: none;
-    }
-    nav .menu-toggle {
-        display: block;
-    }
-    nav div.space-x-4 > button {
-        display: block;
-        margin-bottom: 8px;
-        width: 100%;
-    }
+.notification {
+  background-color: #d1fae5;
+  color: #065f46;
+  border: 1px solid #10b981;
+  padding: 0.75rem;
+  margin-top: 1rem;
+  border-radius: 8px;
+  font-weight: 500;
+}
 
-    /* Responsive table: ทำให้ตารางเปลี่ยนเป็นบล็อกในมือถือ */
-    table, thead, tbody, th, td, tr {
-        display: block;
-    }
-    thead tr {
-        display: none; /* ซ่อน header ตาราง */
-    }
-    tr {
-        margin-bottom: 15px;
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        padding: 10px;
-    }
-    td {
-        border: none;
-        padding-left: 50%;
-        position: relative;
-        text-align: left;
-        white-space: normal; /* ให้อักษร wrap ตามปกติ */
-    }
-    td::before {
-        position: absolute;
-        top: 8px;
-        left: 6px;
-        width: 45%;
-        white-space: nowrap;
-        font-weight: bold;
-        content: attr(data-label);
-    }
+#appointmentNotificationIcon {
+  position: relative;
+  display: inline-block;
+  margin-left: 8px;
+}
+
+#appointmentNotificationCount {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  background: #ef4444;
+  color: white;
+  border-radius: 50%;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+}
+
+ul {
+  padding-left: 1.25rem;
+}
+
+li {
+  margin-bottom: 0.5rem;
 }
