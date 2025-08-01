@@ -1,0 +1,636 @@
+// ฟังก์ชันช่วย capitalize ชื่อ role อย่างปลอดภัย
+function capitalize(str) {
+    if (!str || typeof str !== 'string') return '';
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+// Simple hash function for data integrity
+function simpleHash(data) {
+    let hash = 0;
+    for (let i=0; i < data.length; i++) {
+        hash = ((hash << 5) - hash + data.charCodeAt(i)) | 0;
+    }
+    return hash.toString();
+}
+
+// Initialize localStorage if empty
+function initStorage() {
+    if (!localStorage.getItem('patients')) localStorage.setItem('patients', JSON.stringify([]));
+    if (!localStorage.getItem('physicianAssignments')) localStorage.setItem('physicianAssignments', JSON.stringify({}));
+    if (!localStorage.getItem('appointments')) localStorage.setItem('appointments', JSON.stringify({}));
+}
+initStorage();
+
+let historyStack = [];
+let redoStack = [];
+
+function recordState() {
+    const state = {
+        role: currentRole,
+        section: currentSection,
+        formData: getPatientFormData()
+    };
+    historyStack.push(JSON.parse(JSON.stringify(state)));
+    redoStack = [];
+    updateUndoRedoButtons();
+}
+
+function updateUndoRedoButtons() {
+    document.getElementById('undoBtn').disabled = historyStack.length <= 1;
+    document.getElementById('redoBtn').disabled = redoStack.length === 0;
+}
+
+function undoAction() {
+    if (historyStack.length <= 1) return;
+    const current = historyStack.pop();
+    redoStack.push(current);
+    const prev = historyStack[historyStack.length - 1];
+    restoreState(prev);
+    updateUndoRedoButtons();
+}
+
+function redoAction() {
+    if (redoStack.length === 0) return;
+    const next = redoStack.pop();
+    historyStack.push(next);
+    restoreState(next);
+    updateUndoRedoButtons();
+}
+
+function getPatientFormData() {
+    if (currentRole !== 'patient') return null;
+    return {
+        patientId: document.getElementById('patientId').value,
+        name: document.getElementById('name').value,
+        dob: document.getElementById('dob').value,
+        medicalData: document.getElementById('medicalData').value,
+        sharePharmacy: document.getElementById('sharePharmacy').checked,
+        shareClinic: document.getElementById('shareClinic').checked,
+        shareDentalClinic: document.getElementById('shareDentalClinic').checked,
+        shareHospital: document.getElementById('shareHospital').checked,
+    };
+}
+
+function restoreState(state) {
+    if (!state) return;
+    setRole(state.role, false);
+    showSection(state.section, false);
+    if (state.role === 'patient' && state.formData) {
+        const f = state.formData;
+        document.getElementById('patientId').value = f.patientId || '';
+        document.getElementById('name').value = f.name || '';
+        document.getElementById('dob').value = f.dob || '';
+        document.getElementById('medicalData').value = f.medicalData || '';
+        document.getElementById('sharePharmacy').checked = !!f.sharePharmacy;
+        document.getElementById('shareClinic').checked = !!f.shareClinic;
+        document.getElementById('shareDentalClinic').checked = !!f.shareDentalClinic;
+        document.getElementById('shareHospital').checked = !!f.shareHospital;
+    }
+}
+
+let currentRole = null;
+let currentSection = 'input';
+
+function showRoleSelect() {
+    document.getElementById('roleSelect').classList.remove('hidden');
+    document.getElementById('patientInterface').classList.add('hidden');
+    document.getElementById('organizationInterface').classList.add('hidden');
+    document.getElementById('navTabs').classList.add('hidden');
+    currentRole = null;
+    currentSection = null;
+    document.getElementById('currentRole').textContent = '';
+    historyStack = [];
+    redoStack = [];
+    recordState();
+}
+window.showRoleSelect = showRoleSelect; // จำเป็นต้องผูกชื่อตัวแปรกับ global
+
+function setRole(role, record=true) {
+    if (!role || typeof role !== 'string') {
+        currentRole = null;
+        document.getElementById('currentRole').textContent = '';
+        return;
+    }
+    currentRole = role;
+    document.getElementById('roleSelect').classList.add('hidden');
+    document.getElementById('navTabs').classList.remove('hidden');
+    document.getElementById('currentRole').textContent = `Current Role: ${capitalize(role)}`;
+
+    if (role === 'patient') {
+        document.getElementById('patientInterface').classList.remove('hidden');
+        document.getElementById('organizationInterface').classList.add('hidden');
+        showSection('input', record);
+    } else {
+        document.getElementById('organizationInterface').classList.remove('hidden');
+        document.getElementById('patientInterface').classList.add('hidden');
+        document.getElementById('orgTitle').textContent = `${capitalize(role)} Interface`;
+        showSection('view', record);
+    }
+    if (record) recordState();
+    populateAppointmentPatients();
+}
+window.setRole = setRole;
+
+function showSection(section, record=true) {
+    currentSection = section;
+    if (currentRole === 'patient') {
+        document.getElementById('patientInput').classList.toggle('hidden', section !== 'input');
+        document.getElementById('patientView').classList.toggle('hidden', section !== 'view');
+        if(section !== 'view') {
+            document.getElementById('patientNotification').classList.add('hidden');
+            updateAppointmentNotificationIcon(null);
+        }
+    } else {
+        document.getElementById('orgView').classList.toggle('hidden', section !== 'view');
+        document.getElementById('orgAppointments').classList.toggle('hidden', section !== 'appointments');
+        document.getElementById('orgApi').classList.toggle('hidden', section !== 'api');
+        const physicianContainer = document.getElementById('physicianAssignment');
+        if (currentRole === 'hospital' && section === 'view') {
+            physicianContainer.classList.remove('hidden');
+            document.getElementById('transferPatientSection').classList.remove('hidden');
+        } else {
+            physicianContainer.classList.add('hidden');
+            document.getElementById('transferPatientSection').classList.add('hidden');
+        }
+    }
+    if (record) recordState();
+}
+window.showSection = showSection;
+
+function submitPatientData() {
+    const patientId = document.getElementById('patientId').value.trim();
+    const name = document.getElementById('name').value.trim();
+    const dob = document.getElementById('dob').value;
+    const medicalData = document.getElementById('medicalData').value.trim();
+    const sharePharmacy = document.getElementById('sharePharmacy').checked;
+    const shareClinic = document.getElementById('shareClinic').checked;
+    const shareDentalClinic = document.getElementById('shareDentalClinic').checked;
+    const shareHospital = document.getElementById('shareHospital').checked;
+    const statusElement = document.getElementById('patientStatus');
+
+    if (!patientId || !name || !dob || !medicalData) {
+        showStatus(statusElement, 'Please fill all required fields.', false);
+        return;
+    }
+
+    let patients = JSON.parse(localStorage.getItem('patients')) || [];
+    const existingIndex = patients.findIndex(p => p.patientId === patientId);
+
+    if (existingIndex >= 0) {
+        // อัปเดตข้อมูล
+        patients[existingIndex] = {
+            patientId,
+            fullData: { name, dob, medicalData },
+            consent: {
+                pharmacy: sharePharmacy,
+                clinic: shareClinic,
+                dentalClinic: shareDentalClinic,
+                hospital: shareHospital
+            },
+            hash: simpleHash(patientId + name + dob)
+        };
+        showStatus(statusElement, `Data for ${patientId} updated successfully.`, true);
+    } else {
+        patients.push({
+            patientId,
+            fullData: { name, dob, medicalData },
+            consent: {
+                pharmacy: sharePharmacy,
+                clinic: shareClinic,
+                dentalClinic: shareDentalClinic,
+                hospital: shareHospital
+            },
+            hash: simpleHash(patientId + name + dob)
+        });
+        showStatus(statusElement, `Data for ${patientId} submitted successfully.`, true);
+    }
+
+    localStorage.setItem('patients', JSON.stringify(patients));
+    recordState();
+}
+window.submitPatientData = submitPatientData;
+
+function showStatus(element, message, success = true) {
+    element.textContent = message;
+    if (success) {
+        element.classList.remove('status-error');
+        element.classList.add('status-success');
+    } else {
+        element.classList.remove('status-success');
+        element.classList.add('status-error');
+    }
+}
+
+function viewOrgPatients() {
+    const orgId = document.getElementById('orgId').value.trim();
+    if (!orgId) {
+        alert('Please enter Organization ID.');
+        return;
+    }
+
+    const patients = JSON.parse(localStorage.getItem('patients')) || [];
+    const tbody = document.getElementById('patientTableBody');
+    tbody.innerHTML = '';
+    const roleKey = currentRole;
+
+    const allowedPatients = patients.filter(p => p.consent[roleKey]);
+
+    if (allowedPatients.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center p-4">No patients found or no consent given.</td></tr>`;
+    } else {
+        for (const p of allowedPatients) {
+            const assignments = JSON.parse(localStorage.getItem('physicianAssignments')) || {};
+            const physician = assignments[p.patientId] || '';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td data-label="Patient ID">${p.patientId}</td>
+                <td data-label="Name">${p.fullData.name}</td>
+                <td data-label="DOB">${p.fullData.dob}</td>
+                <td data-label="Medical Data">${p.fullData.medicalData}</td>
+                <td data-label="Action">${currentRole === 'hospital' ? `<button onclick="selectPatientForAssignment('${p.patientId}')" class="bg-blue-500 text-white p-1 rounded hover:bg-blue-600">Assign Physician</button><br/><small>${physician}</small>` : ''}</td>
+            `;
+            tbody.appendChild(tr);
+        }
+    }
+
+    document.getElementById('patientTable').classList.remove('hidden');
+}
+window.viewOrgPatients = viewOrgPatients;
+
+function viewSubmittedData() {
+    const patientId = document.getElementById('viewPatientId').value.trim();
+    const container = document.getElementById('submittedDataTable');
+    const appointmentContainer = document.getElementById('patientAppointments');
+
+    if (!patientId) {
+        container.innerHTML = `<p class="status-message status-error">Please enter Patient ID.</p>`;
+        appointmentContainer.innerHTML = '';
+        document.getElementById('patientNotification').classList.add('hidden');
+        updateAppointmentNotificationIcon(null);
+        return;
+    }
+
+    const patients = JSON.parse(localStorage.getItem('patients')) || [];
+    const patient = patients.find(p => p.patientId === patientId);
+
+    if (!patient) {
+        container.innerHTML = `<p class="status-message status-error">No data found for Patient ID: ${patientId}</p>`;
+        appointmentContainer.innerHTML = '';
+        document.getElementById('patientNotification').classList.add('hidden');
+        updateAppointmentNotificationIcon(null);
+        return;
+    }
+    
+    container.innerHTML = `
+        <table class="border-collapse w-full">
+            <thead><tr><th class="border p-2 bg-gray-200">Field</th><th class="border p-2 bg-gray-200">Value</th></tr></thead>
+            <tbody>
+                <tr><td class="border p-2">Patient ID</td><td class="border p-2">${patient.patientId}</td></tr>
+                <tr><td class="border p-2">Name</td><td class="border p-2">${patient.fullData.name}</td></tr>
+                <tr><td class="border p-2">DOB</td><td class="border p-2">${patient.fullData.dob}</td></tr>
+                <tr><td class="border p-2">Medical Data</td><td class="border p-2">${patient.fullData.medicalData}</td></tr>
+                <tr><td class="border p-2">Hash</td><td class="border p-2">${patient.hash}</td></tr>
+            </tbody>
+        </table>`;
+
+    displayPatientAppointments(patientId);
+    notifyUpcomingAppointments(patientId);
+    updateAppointmentNotificationIcon(patientId);
+}
+window.viewSubmittedData = viewSubmittedData;
+
+function notifyUpcomingAppointments(patientId) {
+    const appointments = JSON.parse(localStorage.getItem('appointments')) || {};
+    const notifications = [];
+    const now = new Date();
+
+    if (patientId && appointments[patientId] && Array.isArray(appointments[patientId])) {
+        appointments[patientId].forEach(app => {
+            const appDate = new Date(`${app.date}T${app.time}`);
+            if (appDate > now) {
+                notifications.push(`${app.org.toUpperCase()}: ${app.date} at ${app.time}`);
+            }
+        });
+    }
+
+    const notifyBox = document.getElementById('patientNotification');
+    if (!notifyBox) return;
+
+    if (notifications.length > 0) {
+        notifyBox.classList.remove('hidden');
+        notifyBox.textContent = `Upcoming appointments: ${notifications.join(' | ')}`;
+    } else {
+        notifyBox.classList.add('hidden');
+        notifyBox.textContent = '';
+    }
+}
+window.notifyUpcomingAppointments = notifyUpcomingAppointments;
+
+function updateAppointmentNotificationIcon(patientId) {
+    const appointments = JSON.parse(localStorage.getItem('appointments')) || {};
+    const notifIcon = document.getElementById('appointmentNotificationIcon');
+    const notifCount = document.getElementById('appointmentNotificationCount');
+
+    if (!notifIcon || !notifCount) return;
+
+    if (!patientId) {
+      notifIcon.style.display = 'none';
+      notifCount.textContent = '0';
+      return;
+    }
+
+    const now = new Date();
+    let upcomingCount = 0;
+
+    if (appointments[patientId] && Array.isArray(appointments[patientId])) {
+        upcomingCount = appointments[patientId].reduce((count, app) => {
+            const appDateTime = new Date(`${app.date}T${app.time}`);
+            if (appDateTime > now) return count + 1;
+            return count;
+        }, 0);
+    }
+
+    if (upcomingCount > 0) {
+        notifIcon.style.display = 'inline-block';
+        notifCount.textContent = upcomingCount;
+    } else {
+        notifIcon.style.display = 'none';
+        notifCount.textContent = '0';
+    }
+}
+window.updateAppointmentNotificationIcon = updateAppointmentNotificationIcon;
+
+function selectPatientForAssignment(patientId) {
+    if (currentRole !== 'hospital') return;
+    localStorage.setItem('currentPatientId', patientId);
+    document.getElementById('physicianAssignment').classList.remove('hidden');
+    document.getElementById('transferPatientSection').classList.remove('hidden');
+}
+window.selectPatientForAssignment = selectPatientForAssignment;
+
+function assignPhysician() {
+    if (currentRole !== 'hospital') return;
+
+    const patientId = localStorage.getItem('currentPatientId');
+    const physician = document.getElementById('physicianSelect').value;
+    const status = document.getElementById('assignmentStatus');
+
+    if (!patientId || !physician) {
+        status.textContent = 'Please select a physician to assign.';
+        status.className = 'status-message status-error';
+        return;
+    }
+
+    const assignments = JSON.parse(localStorage.getItem('physicianAssignments')) || {};
+    assignments[patientId] = physician;
+    localStorage.setItem('physicianAssignments', JSON.stringify(assignments));
+
+    status.textContent = `Assigned ${physician} to patient ${patientId}.`;
+    status.className = 'status-message status-success';
+
+    viewOrgPatients();
+
+    setTimeout(() => {
+        status.textContent = '';
+    }, 3000);
+}
+window.assignPhysician = assignPhysician;
+
+function transferPatientToHospital() {
+    const patientId = localStorage.getItem('currentPatientId');
+    const targetHospital = document.getElementById('transferTargetHospital').value.trim();
+    const transferStatus = document.getElementById('transferStatus');
+
+    if (!patientId || !targetHospital) {
+        transferStatus.textContent = "Please select a patient and input a target hospital Org ID.";
+        transferStatus.className = "status-message status-error";
+        return;
+    }
+
+    let patients = JSON.parse(localStorage.getItem('patients')) || [];
+    const patient = patients.find(p => p.patientId === patientId);
+
+    if (!patient) {
+        transferStatus.textContent = "Patient data not found.";
+        transferStatus.className = "status-message status-error";
+        return;
+    }
+
+    // Add consent for target hospital
+    patient.consent[targetHospital] = true;
+    localStorage.setItem('patients', JSON.stringify(patients));
+
+    transferStatus.textContent = `Transferred patient ${patientId} data to hospital ${targetHospital} successfully.`;
+    transferStatus.className = "status-message status-success";
+
+    setTimeout(() => {
+        transferStatus.textContent = '';
+    }, 3500);
+}
+window.transferPatientToHospital = transferPatientToHospital;
+
+function populateAppointmentPatients() {
+    if (!currentRole || currentRole === 'patient') return;
+
+    const patients = JSON.parse(localStorage.getItem('patients')) || [];
+    const select = document.getElementById('appointmentPatientId');
+
+    select.innerHTML = `<option value="">Select Patient</option>`;
+
+    patients
+        .filter(p => p.consent[currentRole])
+        .forEach(p => {
+            const option = document.createElement('option');
+            option.value = p.patientId;
+            option.textContent = `${p.patientId} - ${p.fullData.name}`;
+            select.appendChild(option);
+        });
+}
+window.populateAppointmentPatients = populateAppointmentPatients;
+
+function scheduleAppointment() {
+    if (currentRole === 'patient') return;
+
+    const patientId = document.getElementById('appointmentPatientId').value;
+    const date = document.getElementById('appointmentDate').value;
+    const time = document.getElementById('appointmentTime').value;
+    const status = document.getElementById('appointmentStatus');
+
+    if (!patientId || !date || !time) {
+        status.textContent = 'Please fill all appointment fields.';
+        status.className = 'status-message status-error';
+        return;
+    }
+
+    let appointments = JSON.parse(localStorage.getItem('appointments')) || {};
+    if (!appointments[patientId]) appointments[patientId] = [];
+
+    // Check for conflicting appointment (same date/time)
+    let conflict = appointments[patientId].some(app => app.date === date && app.time === time);
+    if(conflict) {
+        status.textContent = `Appointment for ${patientId} at ${date} ${time} already exists.`;
+        status.className = 'status-message status-error';
+        return;
+    }
+
+    appointments[patientId].push({ org: currentRole, date, time });
+    localStorage.setItem('appointments', JSON.stringify(appointments));
+
+    status.textContent = `Appointment scheduled for patient ${patientId} on ${date} at ${time}.`;
+    status.className = 'status-message status-success';
+
+    populateAppointmentPatients();
+
+    setTimeout(() => {
+        status.textContent = '';
+    }, 3000);
+}
+window.scheduleAppointment = scheduleAppointment;
+
+function displayPatientAppointments(patientId) {
+    const container = document.getElementById('patientAppointments');
+    container.innerHTML = '';
+    const appointments = JSON.parse(localStorage.getItem('appointments')) || {};
+
+    if (!appointments[patientId] || !Array.isArray(appointments[patientId]) || appointments[patientId].length === 0) {
+        container.innerHTML = '<p>No appointments scheduled.</p>';
+        return;
+    }
+
+    const ul = document.createElement('ul');
+    ul.className = 'list-disc pl-5';
+
+    appointments[patientId].forEach(app => {
+        const li = document.createElement('li');
+        li.textContent = `${app.org}: ${app.date} at ${app.time}`;
+        ul.appendChild(li);
+    });
+    container.appendChild(ul);
+}
+window.displayPatientAppointments = displayPatientAppointments;
+
+function checkReminders() {
+    if (!currentRole || currentRole === 'patient') return;
+
+    const appointments = JSON.parse(localStorage.getItem('appointments')) || {};
+    const now = new Date();
+    const upcoming = [];
+
+    Object.entries(appointments).forEach(([patientId, apps]) => {
+        if (Array.isArray(apps)) {
+            apps.forEach(app => {
+                const appTime = new Date(`${app.date}T${app.time}`);
+                if (app.org === currentRole && appTime > now) {
+                    upcoming.push(`${patientId}: ${app.date} at ${app.time}`);
+                }
+            });
+        }
+    });
+
+    alert(upcoming.length > 0 ? `Upcoming appointments:\n${upcoming.join('\n')}` : 'No upcoming appointments.');
+}
+window.checkReminders = checkReminders;
+
+function setExamplePatient() {
+    document.getElementById('apiPayload').value = JSON.stringify({
+        organizationId: "ORG001",
+        patientId: "PAT002",
+        name: "Jane Doe",
+        dob: "1990-01-01",
+        medicalData: "Allergies: None",
+        consent: {
+            pharmacy: true,
+            clinic: false,
+            dentalClinic: true,
+            hospital: true
+        }
+    }, null, 2);
+
+    document.getElementById('apiMethod').value = "POST /api/patient";
+}
+window.setExamplePatient = setExamplePatient;
+
+function testApi() {
+    const method = document.getElementById('apiMethod').value;
+    const orgId = document.getElementById('apiOrgId').value.trim();
+    const patientId = document.getElementById('apiPatientId').value.trim();
+    const payloadRaw = document.getElementById('apiPayload').value;
+    const responseDiv = document.getElementById('apiResponse');
+
+    try {
+        const payload = payloadRaw ? JSON.parse(payloadRaw) : {};
+
+        if (method === 'POST /api/patient') {
+            // Validate payload
+            const requiredFields = ['organizationId', 'patientId', 'name', 'dob', 'medicalData', 'consent'];
+            const errors = requiredFields.filter(f => !payload[f]);
+            if (errors.length > 0) {
+                responseDiv.textContent = JSON.stringify({ error: `Missing fields: ${errors.join(', ')}` }, null, 2);
+                return;
+            }
+            if (typeof payload.consent !== 'object') {
+                responseDiv.textContent = JSON.stringify({ error: `Consent must be an object` }, null, 2);
+                return;
+            }
+
+            let patients = JSON.parse(localStorage.getItem('patients')) || [];
+            const patientData = {
+                patientId: payload.patientId,
+                fullData: { name: payload.name, dob: payload.dob, medicalData: payload.medicalData },
+                consent: {
+                    pharmacy: !!payload.consent.pharmacy,
+                    clinic: !!payload.consent.clinic,
+                    dentalClinic: !!payload.consent.dentalClinic,
+                    hospital: !!payload.consent.hospital
+                },
+                hash: simpleHash(payload.patientId + payload.name + payload.dob)
+            };
+            const existingIndex = patients.findIndex(p => p.patientId === payload.patientId);
+            if(existingIndex !== -1) {
+                patients[existingIndex] = patientData;
+            } else {
+                patients.push(patientData);
+            }
+            localStorage.setItem('patients', JSON.stringify(patients));
+            responseDiv.textContent = JSON.stringify({ status: 'success', message: `Patient ${payload.patientId} added/updated` }, null, 2);
+        } else if (method === 'GET /api/patient') {
+            if (!orgId || !patientId) {
+                responseDiv.textContent = JSON.stringify({ error: 'Missing orgId or patientId' }, null, 2);
+                return;
+            }
+            let patients = JSON.parse(localStorage.getItem('patients')) || [];
+            const patient = patients.find(p => p.patientId === patientId);
+            if (!patient) {
+                responseDiv.textContent = JSON.stringify({ error: 'Patient not found' }, null, 2);
+                return;
+            }
+            if (!patient.consent[currentRole]) {
+                responseDiv.textContent = JSON.stringify({ error: 'No consent for this organization' }, null, 2);
+                return;
+            }
+            responseDiv.textContent = JSON.stringify({
+                patientId: patient.patientId,
+                name: patient.fullData.name,
+                dob: patient.fullData.dob,
+                medicalData: patient.fullData.medicalData
+            }, null, 2);
+        }
+    } catch (e) {
+        responseDiv.textContent = JSON.stringify({ error: `Invalid JSON: ${e.message}` }, null, 2);
+    }
+}
+window.testApi = testApi;
+
+// On page load, show role selection and add event listener for notification icon click
+window.onload = function() {
+    showRoleSelect();
+
+    const notifIcon = document.getElementById('appointmentNotificationIcon');
+    if (notifIcon) {
+        notifIcon.addEventListener('click', () => {
+            if(currentRole === 'patient') {
+                showSection('view');
+            }
+        });
+    }
+};

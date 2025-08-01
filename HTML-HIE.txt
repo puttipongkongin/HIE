@@ -1,0 +1,189 @@
+
+<html lang="en">
+  <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Decentralized Health Information Exchange</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="script.js" defer></script>
+</head>
+<body class="bg-gray-100 p-6">
+
+  <!-- Navigation bar -->
+  <nav class="bg-white p-4 shadow-lg mb-6">
+    <div class="flex justify-between items-center">
+      <div class="text-2xl font-bold">HIE Navigator</div>
+      <div class="flex items-center space-x-4">
+        <button id="undoBtn" onclick="undoAction()" class="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600" disabled>Undo</button>
+        <button id="redoBtn" onclick="redoAction()" class="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600" disabled>Redo</button>
+        <button id="roleSelectBtn" onclick="showRoleSelect()" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">Change Role</button>
+
+        <!-- Appointment notification icon with badge -->
+        <div id="appointmentNotificationIcon" 
+             class="relative cursor-pointer" 
+             title="Upcoming Appointments" 
+             style="display:none; margin-left: 12px;"
+             aria-live="polite" aria-atomic="true" role="alert"
+             tabindex="0" 
+             aria-label="You have new upcoming appointments">
+          <!-- Bell icon SVG -->
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+              d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V4a2 2 0 10-4 0v1.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0a3 3 0 11-6 0h6z"/>
+          </svg>
+          <!-- Badge count -->
+          <span id="appointmentNotificationCount" 
+                class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 bg-red-600 rounded-full"
+                style="transform: translate(50%, -50%); min-width: 1.25rem; height: 1.25rem;">
+            0
+          </span>
+        </div>
+
+        <span id="currentRole" class="text-gray-600"></span>
+      </div>
+    </div>
+    <div id="navTabs" class="mt-4 hidden">
+      <button onclick="showSection('input')" class="bg-gray-200 px-3 py-1 rounded mr-2">Input Data</button>
+      <button onclick="showSection('view')" class="bg-gray-200 px-3 py-1 rounded mr-2">View Data</button>
+      <button onclick="showSection('appointments')" class="bg-gray-200 px-3 py-1 rounded mr-2">Appointments</button>
+      <button onclick="showSection('api')" class="bg-gray-200 px-3 py-1 rounded">API Test</button>
+    </div>
+  </nav>
+
+  <!-- Role selection panel -->
+  <div id="roleSelect" class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-lg hidden" role="dialog" aria-modal="true" aria-labelledby="roleSelectTitle">
+    <h1 id="roleSelectTitle" class="text-3xl font-bold mb-4">Decentralized Health Information Exchange</h1>
+    <p class="mb-6">Choose your role to proceed.</p>
+    <div class="space-y-4">
+      <button onclick="setRole('patient')" class="bg-blue-500 text-white p-2 rounded w-full hover:bg-blue-600">Patient</button>
+      <button onclick="setRole('pharmacy')" class="bg-green-500 text-white p-2 rounded w-full hover:bg-green-600">Pharmacy</button>
+      <button onclick="setRole('clinic')" class="bg-purple-500 text-white p-2 rounded w-full hover:bg-purple-600">Clinic</button>
+      <button onclick="setRole('dentalClinic')" class="bg-yellow-500 text-white p-2 rounded w-full hover:bg-yellow-600">Dental Clinic</button>
+      <button onclick="setRole('hospital')" class="bg-red-500 text-white p-2 rounded w-full hover:bg-red-600">Hospital</button>
+    </div>
+  </div>
+
+  <!-- Patient Interface -->
+  <div id="patientInterface" class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-lg hidden" role="main" aria-live="polite">
+    <h1 class="text-3xl font-bold mb-4">Patient Interface</h1>
+
+    <!-- Input form -->
+    <div id="patientInput" class="space-y-6">
+      <p class="mb-6">Share all your data with selected organizations.</p>
+      <div class="grid grid-cols-2 gap-4">
+        <input type="text" id="patientId" placeholder="Patient ID (e.g., PAT001)" class="border p-2 rounded" aria-label="Patient ID" />
+        <input type="text" id="name" placeholder="Name (e.g., Jane Doe)" class="border p-2 rounded" aria-label="Name" />
+        <input type="date" id="dob" class="border p-2 rounded" aria-label="Date of Birth" />
+        <input type="text" id="medicalData" placeholder="Medical Data (e.g., Allergies: None)" class="border p-2 rounded" aria-label="Medical Data" />
+        <div class="col-span-2">
+          <p class="mb-2 font-semibold">Select organizations to share with:</p>
+          <div class="space-y-2">
+            <label><input type="checkbox" id="sharePharmacy" class="mr-2" /> Pharmacy</label>
+            <label><input type="checkbox" id="shareClinic" class="mr-2" /> Clinic</label>
+            <label><input type="checkbox" id="shareDentalClinic" class="mr-2" /> Dental Clinic</label>
+            <label><input type="checkbox" id="shareHospital" class="mr-2" /> Hospital</label>
+          </div>
+        </div>
+      </div>
+      <button onclick="submitPatientData()" class="bg-green-500 text-white p-2 rounded hover:bg-green-600">Submit Data</button>
+      <p id="patientStatus" aria-live="assertive"></p>
+    </div>
+
+    <!-- Appointment notifications -->
+    <div id="patientNotification" class="status-message status-success mb-2 hidden"></div>
+
+    <!-- View submitted data -->
+    <div id="patientView" class="space-y-6 hidden mt-6">
+      <h2 class="text-2xl font-semibold">Submitted Data</h2>
+      <p id="submittedDataInfo" class="mb-4">Enter your Patient ID to view submitted data and appointments.</p>
+      <input type="text" id="viewPatientId" placeholder="Patient ID (e.g., PAT001)" class="border p-2 rounded w-1/3" />
+      <button onclick="viewSubmittedData()" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600">View Data</button>
+      <div id="submittedDataTable" class="mt-4"></div>
+      <div id="patientAppointments" class="mt-4"></div>
+    </div>
+  </div>
+
+  <!-- Organization Interface -->
+  <div id="organizationInterface" class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-lg hidden" role="main" aria-live="polite">
+    <h1 id="orgTitle" class="text-3xl font-bold mb-4"></h1>
+
+    <div id="orgView" class="space-y-6">
+      <p class="mb-6">View all consented patient data for your organization.</p>
+      <div class="flex space-x-4">
+        <input type="text" id="orgId" placeholder="Organization ID (e.g., ORG001)" class="border p-2 rounded w-1/3" />
+        <button onclick="viewOrgPatients()" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600">View Patients</button>
+      </div>
+      <table id="patientTable" class="mt-4 hidden" role="grid" aria-label="Patient Data Table">
+        <thead>
+          <tr>
+            <th scope="col">Patient ID</th>
+            <th scope="col">Name</th>
+            <th scope="col">DOB</th>
+            <th scope="col">Medical Data</th>
+            <th scope="col">Action (Hospital Only)</th>
+          </tr>
+        </thead>
+        <tbody id="patientTableBody"></tbody>
+      </table>
+      <div id="orgSpecificInfo" class="mt-4"></div>
+
+      <!-- Assign Physician -->
+      <div id="physicianAssignment" class="mt-4 hidden" aria-live="polite" aria-atomic="true">
+        <h3 class="text-xl font-semibold">Assign Physician</h3>
+        <select id="physicianSelect" class="border p-2 rounded w-1/3" aria-label="Select Physician">
+          <option value="">Select Physician</option>
+          <option value="Dr. John Smith - Cardiology">Dr. John Smith - Cardiology</option>
+          <option value="Dr. Emily Davis - Neurology">Dr. Emily Davis - Neurology</option>
+          <option value="Dr. Michael Lee - Orthopedics">Dr. Michael Lee - Orthopedics</option>
+        </select>
+        <button onclick="assignPhysician()" class="bg-green-500 text-white p-2 rounded ml-2 hover:bg-green-600">Save Assignment</button>
+        <p id="assignmentStatus"></p>
+      </div>
+
+      <!-- Transfer Patient Data (Hospital only) -->
+      <div id="transferPatientSection" class="my-4 hidden">
+        <h3 class="text-lg font-semibold mb-2">Transfer Patient Data to Another Hospital</h3>
+        <input type="text" id="transferTargetHospital" placeholder="Target Hospital Org ID (e.g., ORG999)" class="border p-2 mr-2 rounded" />
+        <button onclick="transferPatientToHospital()" class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600">Transfer</button>
+        <p id="transferStatus" class="mt-2"></p>
+      </div>
+    </div>
+
+    <div id="orgAppointments" class="space-y-6 hidden mt-6">
+      <h2 class="text-2xl font-semibold">Schedule Appointments</h2>
+      <p class="mb-4">Select a patient to schedule an appointment.</p>
+      <select id="appointmentPatientId" class="border p-2 rounded w-1/3" aria-label="Select Patient for Appointment">
+        <option value="">Select Patient</option>
+      </select>
+      <div class="flex space-x-4 mt-2">
+        <input type="date" id="appointmentDate" class="border p-2 rounded" min="2025-07-31" aria-label="Appointment Date" />
+        <input type="time" id="appointmentTime" class="border p-2 rounded" aria-label="Appointment Time" />
+      </div>
+      <button onclick="scheduleAppointment()" class="bg-green-500 text-white p-2 rounded hover:bg-green-600">Schedule</button>
+      <p id="appointmentStatus"></p>
+      <button onclick="checkReminders()" class="bg-blue-500 text-white p-2 rounded mt-2 hover:bg-blue-600">Check Reminders</button>
+    </div>
+
+    <div id="orgApi" class="space-y-6 hidden mt-6" aria-live="polite">
+      <h2 class="text-2xl font-semibold">API Tester</h2>
+      <div class="flex space-x-4 mb-4">
+        <select id="apiMethod" class="border p-2 rounded" aria-label="Select API Method">
+          <option value="POST /api/patient">POST /api/patient</option>
+          <option value="GET /api/patient">GET /api/patient</option>
+        </select>
+        <input type="text" id="apiOrgId" placeholder="Org ID (e.g., ORG001)" class="border p-2 rounded w-1/3" aria-label="Organization ID" />
+        <input type="text" id="apiPatientId" placeholder="Patient ID for GET (e.g., PAT002)" class="border p-2 rounded w-1/3" aria-label="Patient ID for GET" />
+      </div>
+      <div class="flex space-x-4 mb-4">
+        <button onclick="setExamplePatient()" class="example-button">Example Patient</button>
+      </div>
+      <textarea id="apiPayload" class="border p-2 rounded w-full h-32 mb-4" placeholder='For POST /api/patient: {"organizationId": "ORG001", "patientId": "PAT002", "name": "Jane Doe", "dob": "1990-01-01", "medicalData": "Allergies: None", "consent": {"pharmacy": true, "clinic": false, ...}}' aria-label="API Payload"></textarea>
+      <button onclick="testApi()" class="bg-purple-500 text-white p-2 rounded hover:bg-purple-600">Send Request</button>
+      <div id="apiResponse" class="json-output mt-4" aria-live="polite"></div>
+    </div>
+    
+  </div>
+
+</body>
+</html>
