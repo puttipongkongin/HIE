@@ -1,636 +1,613 @@
-// ฟังก์ชันช่วย capitalize ชื่อ role อย่างปลอดภัย
-function capitalize(str) {
-    if (!str || typeof str !== 'string') return '';
-    return str.charAt(0).toUpperCase() + str.slice(1);
-}
+(() => {
+  "use strict";
 
-// Simple hash function for data integrity
-function simpleHash(data) {
-    let hash = 0;
-    for (let i=0; i < data.length; i++) {
-        hash = ((hash << 5) - hash + data.charCodeAt(i)) | 0;
+  // --- DOM Elements ---
+  const sections = {
+    register: document.getElementById("registerSection"),
+    login: document.getElementById("loginSection"),
+    patientDashboard: document.getElementById("patientDashboard"),
+    physicianDashboard: document.getElementById("physicianDashboard"),
+    nav: document.getElementById("nav"),
+  };
+
+  const registerForm = document.getElementById("registerForm");
+  const loginForm = document.getElementById("loginForm");
+  const registerRole = document.getElementById("registerRole");
+  const physicianVerificationFields = document.getElementById("physicianVerificationFields");
+  const registerStatus = document.getElementById("registerStatus");
+  const loginStatus = document.getElementById("loginStatus");
+
+  // Patient dashboard elements
+  const patientNameEl = document.getElementById("patientName");
+  const patientAppointmentsList = document.getElementById("patientAppointmentsList");
+  const patientDataForm = document.getElementById("patientDataForm");
+  const patientDobInput = document.getElementById("patientDob");
+  const patientAllergiesInput = document.getElementById("patientAllergies");
+  const patientUpdateStatus = document.getElementById("patientUpdateStatus");
+  const patientAppointmentForm = document.getElementById("patientAppointmentForm");
+  const patientAppointmentDate = document.getElementById("patientAppointmentDate");
+  const patientAppointmentTime = document.getElementById("patientAppointmentTime");
+  const patientAppointmentStatus = document.getElementById("patientAppointmentStatus");
+  const patientRefreshBtn = document.getElementById("patientRefreshBtn");
+
+  // Sanatorium consent elements
+  const sanatoriumListDiv = document.getElementById("sanatoriumList");
+  const dataSharingForm = document.getElementById("dataSharingForm");
+  const dataSharingStatus = document.getElementById("dataSharingStatus");
+
+  // Physician dashboard elements
+  const physicianNameEl = document.getElementById("physicianName");
+  const physicianVerificationStatus = document.getElementById("physicianVerificationStatus");
+  const physicianPatientTableBody = document.getElementById("physicianPatientTableBody");
+  const physicianPatientDetails = document.getElementById("physicianPatientDetails");
+  const physicianRefreshBtn = document.getElementById("physicianRefreshBtn");
+  const physicianLogoutBtn = document.getElementById("physicianLogoutBtn");
+
+  // Navigation buttons
+  const nav = sections.nav;
+  const dashboardBtn = document.getElementById("dashboardBtn");
+  const logoutBtn = document.getElementById("logoutBtn");
+  const showLoginBtn = document.getElementById("showLoginBtn");
+  const showRegisterBtn = document.getElementById("showRegisterBtn");
+
+  // Current logged-in user
+  let currentUser = null;
+
+  // --- Utility localStorage helpers ---
+
+  function getUsers() {
+    try {
+      return JSON.parse(localStorage.getItem("users")) || [];
+    } catch {
+      return [];
     }
-    return hash.toString();
-}
+  }
+  function saveUsers(users) {
+    localStorage.setItem("users", JSON.stringify(users));
+  }
+  function getPatients() {
+    try {
+      return JSON.parse(localStorage.getItem("patients")) || [];
+    } catch {
+      return [];
+    }
+  }
+  function savePatients(patients) {
+    localStorage.setItem("patients", JSON.stringify(patients));
+  }
+  function getAppointments() {
+    try {
+      return JSON.parse(localStorage.getItem("appointments")) || [];
+    } catch {
+      return [];
+    }
+  }
+  function saveAppointments(appointments) {
+    localStorage.setItem("appointments", JSON.stringify(appointments));
+  }
+  function getSanatoriumConsent(patientId) {
+    try {
+      return JSON.parse(localStorage.getItem(`sanatoriumConsent_${patientId}`)) || [];
+    } catch {
+      return [];
+    }
+  }
+  function saveSanatoriumConsent(patientId, selected) {
+    localStorage.setItem(`sanatoriumConsent_${patientId}`, JSON.stringify(selected));
+  }
 
-// Initialize localStorage if empty
-function initStorage() {
-    if (!localStorage.getItem('patients')) localStorage.setItem('patients', JSON.stringify([]));
-    if (!localStorage.getItem('physicianAssignments')) localStorage.setItem('physicianAssignments', JSON.stringify({}));
-    if (!localStorage.getItem('appointments')) localStorage.setItem('appointments', JSON.stringify({}));
-}
-initStorage();
+  // Current User session handling
+  function setCurrentUser(user) {
+    localStorage.setItem("currentUser", JSON.stringify(user));
+    currentUser = user;
+  }
+  function loadCurrentUser() {
+    try {
+      const userStr = localStorage.getItem("currentUser");
+      if (!userStr) return null;
+      currentUser = JSON.parse(userStr);
+      return currentUser;
+    } catch {
+      return null;
+    }
+  }
+  function clearCurrentUser() {
+    localStorage.removeItem("currentUser");
+    currentUser = null;
+  }
 
-let historyStack = [];
-let redoStack = [];
+  // Show only one section at a time, toggle nav visibility accordingly
+  function showSection(name) {
+    Object.entries(sections).forEach(([key, elem]) => {
+      if (key === name) elem.classList.remove("hidden");
+      else elem.classList.add("hidden");
+    });
+    if (name === "patientDashboard" || name === "physicianDashboard") {
+      nav.classList.remove("hidden");
+    } else {
+      nav.classList.add("hidden");
+    }
+  }
 
-function recordState() {
-    const state = {
-        role: currentRole,
-        section: currentSection,
-        formData: getPatientFormData()
+  // Clear forms and message texts
+  function clearFormsAndMessages() {
+    ["registerUsernameError", "registerPasswordError", "registerRoleError", "licenseNumberError"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = "";
+    });
+    registerStatus.textContent = "";
+    registerStatus.className = "";
+    loginStatus.textContent = "";
+    loginStatus.className = "";
+
+    ["registerUsername", "registerPassword", "licenseNumber"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = "";
+    });
+    registerRole.value = "";
+    physicianVerificationFields.classList.add("hidden");
+
+    ["loginUsernameError", "loginPasswordError"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = "";
+    });
+    ["loginUsername", "loginPassword"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = "";
+    });
+
+    if (patientUpdateStatus) patientUpdateStatus.textContent = "";
+    if (patientAppointmentStatus) patientAppointmentStatus.textContent = "";
+    if (dataSharingStatus) dataSharingStatus.textContent = "";
+  }
+
+  // --- Registration ---
+
+  function validateRegistration(data) {
+    const errors = {};
+    if (!data.username || data.username.trim().length < 3) errors.username = "Username must be at least 3 characters.";
+    if (!data.password || data.password.length < 6) errors.password = "Password must be at least 6 characters.";
+    if (!data.role || !["patient", "physician"].includes(data.role)) errors.role = "Please select a role.";
+    if (data.role === "physician" && (!data.licenseNumber || data.licenseNumber.trim().length < 5)) {
+      errors.licenseNumber = "Valid license number is required for physicians.";
+    }
+    return errors;
+  }
+
+  function addUser(user) {
+    const users = getUsers();
+    if (users.find(u => u.username.toLowerCase() === user.username.toLowerCase())) return false;
+    users.push(user);
+    saveUsers(users);
+    return true;
+  }
+
+  registerRole.addEventListener("change", () => {
+    if (registerRole.value === "physician") {
+      physicianVerificationFields.classList.remove("hidden");
+    } else {
+      physicianVerificationFields.classList.add("hidden");
+    }
+  });
+
+  registerForm.addEventListener("submit", e => {
+    e.preventDefault();
+
+    ["registerUsernameError", "registerPasswordError", "registerRoleError", "licenseNumberError"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = "";
+    });
+    registerStatus.textContent = "";
+    registerStatus.className = "";
+
+    const formData = {
+      username: document.getElementById("registerUsername").value.trim(),
+      password: document.getElementById("registerPassword").value,
+      role: registerRole.value,
+      licenseNumber: document.getElementById("licenseNumber").value.trim(),
+      verified: document.getElementById("verifiedCheckbox").checked,
     };
-    historyStack.push(JSON.parse(JSON.stringify(state)));
-    redoStack = [];
-    updateUndoRedoButtons();
-}
-
-function updateUndoRedoButtons() {
-    document.getElementById('undoBtn').disabled = historyStack.length <= 1;
-    document.getElementById('redoBtn').disabled = redoStack.length === 0;
-}
-
-function undoAction() {
-    if (historyStack.length <= 1) return;
-    const current = historyStack.pop();
-    redoStack.push(current);
-    const prev = historyStack[historyStack.length - 1];
-    restoreState(prev);
-    updateUndoRedoButtons();
-}
-
-function redoAction() {
-    if (redoStack.length === 0) return;
-    const next = redoStack.pop();
-    historyStack.push(next);
-    restoreState(next);
-    updateUndoRedoButtons();
-}
-
-function getPatientFormData() {
-    if (currentRole !== 'patient') return null;
-    return {
-        patientId: document.getElementById('patientId').value,
-        name: document.getElementById('name').value,
-        dob: document.getElementById('dob').value,
-        medicalData: document.getElementById('medicalData').value,
-        sharePharmacy: document.getElementById('sharePharmacy').checked,
-        shareClinic: document.getElementById('shareClinic').checked,
-        shareDentalClinic: document.getElementById('shareDentalClinic').checked,
-        shareHospital: document.getElementById('shareHospital').checked,
-    };
-}
-
-function restoreState(state) {
-    if (!state) return;
-    setRole(state.role, false);
-    showSection(state.section, false);
-    if (state.role === 'patient' && state.formData) {
-        const f = state.formData;
-        document.getElementById('patientId').value = f.patientId || '';
-        document.getElementById('name').value = f.name || '';
-        document.getElementById('dob').value = f.dob || '';
-        document.getElementById('medicalData').value = f.medicalData || '';
-        document.getElementById('sharePharmacy').checked = !!f.sharePharmacy;
-        document.getElementById('shareClinic').checked = !!f.shareClinic;
-        document.getElementById('shareDentalClinic').checked = !!f.shareDentalClinic;
-        document.getElementById('shareHospital').checked = !!f.shareHospital;
-    }
-}
-
-let currentRole = null;
-let currentSection = 'input';
-
-function showRoleSelect() {
-    document.getElementById('roleSelect').classList.remove('hidden');
-    document.getElementById('patientInterface').classList.add('hidden');
-    document.getElementById('organizationInterface').classList.add('hidden');
-    document.getElementById('navTabs').classList.add('hidden');
-    currentRole = null;
-    currentSection = null;
-    document.getElementById('currentRole').textContent = '';
-    historyStack = [];
-    redoStack = [];
-    recordState();
-}
-window.showRoleSelect = showRoleSelect; // จำเป็นต้องผูกชื่อตัวแปรกับ global
-
-function setRole(role, record=true) {
-    if (!role || typeof role !== 'string') {
-        currentRole = null;
-        document.getElementById('currentRole').textContent = '';
-        return;
-    }
-    currentRole = role;
-    document.getElementById('roleSelect').classList.add('hidden');
-    document.getElementById('navTabs').classList.remove('hidden');
-    document.getElementById('currentRole').textContent = `Current Role: ${capitalize(role)}`;
-
-    if (role === 'patient') {
-        document.getElementById('patientInterface').classList.remove('hidden');
-        document.getElementById('organizationInterface').classList.add('hidden');
-        showSection('input', record);
-    } else {
-        document.getElementById('organizationInterface').classList.remove('hidden');
-        document.getElementById('patientInterface').classList.add('hidden');
-        document.getElementById('orgTitle').textContent = `${capitalize(role)} Interface`;
-        showSection('view', record);
-    }
-    if (record) recordState();
-    populateAppointmentPatients();
-}
-window.setRole = setRole;
-
-function showSection(section, record=true) {
-    currentSection = section;
-    if (currentRole === 'patient') {
-        document.getElementById('patientInput').classList.toggle('hidden', section !== 'input');
-        document.getElementById('patientView').classList.toggle('hidden', section !== 'view');
-        if(section !== 'view') {
-            document.getElementById('patientNotification').classList.add('hidden');
-            updateAppointmentNotificationIcon(null);
-        }
-    } else {
-        document.getElementById('orgView').classList.toggle('hidden', section !== 'view');
-        document.getElementById('orgAppointments').classList.toggle('hidden', section !== 'appointments');
-        document.getElementById('orgApi').classList.toggle('hidden', section !== 'api');
-        const physicianContainer = document.getElementById('physicianAssignment');
-        if (currentRole === 'hospital' && section === 'view') {
-            physicianContainer.classList.remove('hidden');
-            document.getElementById('transferPatientSection').classList.remove('hidden');
-        } else {
-            physicianContainer.classList.add('hidden');
-            document.getElementById('transferPatientSection').classList.add('hidden');
-        }
-    }
-    if (record) recordState();
-}
-window.showSection = showSection;
-
-function submitPatientData() {
-    const patientId = document.getElementById('patientId').value.trim();
-    const name = document.getElementById('name').value.trim();
-    const dob = document.getElementById('dob').value;
-    const medicalData = document.getElementById('medicalData').value.trim();
-    const sharePharmacy = document.getElementById('sharePharmacy').checked;
-    const shareClinic = document.getElementById('shareClinic').checked;
-    const shareDentalClinic = document.getElementById('shareDentalClinic').checked;
-    const shareHospital = document.getElementById('shareHospital').checked;
-    const statusElement = document.getElementById('patientStatus');
-
-    if (!patientId || !name || !dob || !medicalData) {
-        showStatus(statusElement, 'Please fill all required fields.', false);
-        return;
-    }
-
-    let patients = JSON.parse(localStorage.getItem('patients')) || [];
-    const existingIndex = patients.findIndex(p => p.patientId === patientId);
-
-    if (existingIndex >= 0) {
-        // อัปเดตข้อมูล
-        patients[existingIndex] = {
-            patientId,
-            fullData: { name, dob, medicalData },
-            consent: {
-                pharmacy: sharePharmacy,
-                clinic: shareClinic,
-                dentalClinic: shareDentalClinic,
-                hospital: shareHospital
-            },
-            hash: simpleHash(patientId + name + dob)
-        };
-        showStatus(statusElement, `Data for ${patientId} updated successfully.`, true);
-    } else {
-        patients.push({
-            patientId,
-            fullData: { name, dob, medicalData },
-            consent: {
-                pharmacy: sharePharmacy,
-                clinic: shareClinic,
-                dentalClinic: shareDentalClinic,
-                hospital: shareHospital
-            },
-            hash: simpleHash(patientId + name + dob)
-        });
-        showStatus(statusElement, `Data for ${patientId} submitted successfully.`, true);
-    }
-
-    localStorage.setItem('patients', JSON.stringify(patients));
-    recordState();
-}
-window.submitPatientData = submitPatientData;
-
-function showStatus(element, message, success = true) {
-    element.textContent = message;
-    if (success) {
-        element.classList.remove('status-error');
-        element.classList.add('status-success');
-    } else {
-        element.classList.remove('status-success');
-        element.classList.add('status-error');
-    }
-}
-
-function viewOrgPatients() {
-    const orgId = document.getElementById('orgId').value.trim();
-    if (!orgId) {
-        alert('Please enter Organization ID.');
-        return;
-    }
-
-    const patients = JSON.parse(localStorage.getItem('patients')) || [];
-    const tbody = document.getElementById('patientTableBody');
-    tbody.innerHTML = '';
-    const roleKey = currentRole;
-
-    const allowedPatients = patients.filter(p => p.consent[roleKey]);
-
-    if (allowedPatients.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center p-4">No patients found or no consent given.</td></tr>`;
-    } else {
-        for (const p of allowedPatients) {
-            const assignments = JSON.parse(localStorage.getItem('physicianAssignments')) || {};
-            const physician = assignments[p.patientId] || '';
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td data-label="Patient ID">${p.patientId}</td>
-                <td data-label="Name">${p.fullData.name}</td>
-                <td data-label="DOB">${p.fullData.dob}</td>
-                <td data-label="Medical Data">${p.fullData.medicalData}</td>
-                <td data-label="Action">${currentRole === 'hospital' ? `<button onclick="selectPatientForAssignment('${p.patientId}')" class="bg-blue-500 text-white p-1 rounded hover:bg-blue-600">Assign Physician</button><br/><small>${physician}</small>` : ''}</td>
-            `;
-            tbody.appendChild(tr);
-        }
-    }
-
-    document.getElementById('patientTable').classList.remove('hidden');
-}
-window.viewOrgPatients = viewOrgPatients;
-
-function viewSubmittedData() {
-    const patientId = document.getElementById('viewPatientId').value.trim();
-    const container = document.getElementById('submittedDataTable');
-    const appointmentContainer = document.getElementById('patientAppointments');
-
-    if (!patientId) {
-        container.innerHTML = `<p class="status-message status-error">Please enter Patient ID.</p>`;
-        appointmentContainer.innerHTML = '';
-        document.getElementById('patientNotification').classList.add('hidden');
-        updateAppointmentNotificationIcon(null);
-        return;
-    }
-
-    const patients = JSON.parse(localStorage.getItem('patients')) || [];
-    const patient = patients.find(p => p.patientId === patientId);
-
-    if (!patient) {
-        container.innerHTML = `<p class="status-message status-error">No data found for Patient ID: ${patientId}</p>`;
-        appointmentContainer.innerHTML = '';
-        document.getElementById('patientNotification').classList.add('hidden');
-        updateAppointmentNotificationIcon(null);
-        return;
-    }
-    
-    container.innerHTML = `
-        <table class="border-collapse w-full">
-            <thead><tr><th class="border p-2 bg-gray-200">Field</th><th class="border p-2 bg-gray-200">Value</th></tr></thead>
-            <tbody>
-                <tr><td class="border p-2">Patient ID</td><td class="border p-2">${patient.patientId}</td></tr>
-                <tr><td class="border p-2">Name</td><td class="border p-2">${patient.fullData.name}</td></tr>
-                <tr><td class="border p-2">DOB</td><td class="border p-2">${patient.fullData.dob}</td></tr>
-                <tr><td class="border p-2">Medical Data</td><td class="border p-2">${patient.fullData.medicalData}</td></tr>
-                <tr><td class="border p-2">Hash</td><td class="border p-2">${patient.hash}</td></tr>
-            </tbody>
-        </table>`;
-
-    displayPatientAppointments(patientId);
-    notifyUpcomingAppointments(patientId);
-    updateAppointmentNotificationIcon(patientId);
-}
-window.viewSubmittedData = viewSubmittedData;
-
-function notifyUpcomingAppointments(patientId) {
-    const appointments = JSON.parse(localStorage.getItem('appointments')) || {};
-    const notifications = [];
-    const now = new Date();
-
-    if (patientId && appointments[patientId] && Array.isArray(appointments[patientId])) {
-        appointments[patientId].forEach(app => {
-            const appDate = new Date(`${app.date}T${app.time}`);
-            if (appDate > now) {
-                notifications.push(`${app.org.toUpperCase()}: ${app.date} at ${app.time}`);
-            }
-        });
-    }
-
-    const notifyBox = document.getElementById('patientNotification');
-    if (!notifyBox) return;
-
-    if (notifications.length > 0) {
-        notifyBox.classList.remove('hidden');
-        notifyBox.textContent = `Upcoming appointments: ${notifications.join(' | ')}`;
-    } else {
-        notifyBox.classList.add('hidden');
-        notifyBox.textContent = '';
-    }
-}
-window.notifyUpcomingAppointments = notifyUpcomingAppointments;
-
-function updateAppointmentNotificationIcon(patientId) {
-    const appointments = JSON.parse(localStorage.getItem('appointments')) || {};
-    const notifIcon = document.getElementById('appointmentNotificationIcon');
-    const notifCount = document.getElementById('appointmentNotificationCount');
-
-    if (!notifIcon || !notifCount) return;
-
-    if (!patientId) {
-      notifIcon.style.display = 'none';
-      notifCount.textContent = '0';
+    const errors = validateRegistration(formData);
+    if (Object.keys(errors).length > 0) {
+      if (errors.username) document.getElementById("registerUsernameError").textContent = errors.username;
+      if (errors.password) document.getElementById("registerPasswordError").textContent = errors.password;
+      if (errors.role) document.getElementById("registerRoleError").textContent = errors.role;
+      if (errors.licenseNumber) document.getElementById("licenseNumberError").textContent = errors.licenseNumber;
       return;
     }
 
-    const now = new Date();
-    let upcomingCount = 0;
-
-    if (appointments[patientId] && Array.isArray(appointments[patientId])) {
-        upcomingCount = appointments[patientId].reduce((count, app) => {
-            const appDateTime = new Date(`${app.date}T${app.time}`);
-            if (appDateTime > now) return count + 1;
-            return count;
-        }, 0);
+    const newUser = {
+      userId: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
+      username: formData.username,
+      password: formData.password,
+      role: formData.role,
+      licenseNumber: formData.role === "physician" ? formData.licenseNumber : "",
+      verified: formData.role === "physician" ? formData.verified : true,
+    };
+    if (!addUser(newUser)) {
+      registerStatus.textContent = "Username already exists, please choose another.";
+      registerStatus.className = "error";
+      return;
     }
 
-    if (upcomingCount > 0) {
-        notifIcon.style.display = 'inline-block';
-        notifCount.textContent = upcomingCount;
+    registerStatus.textContent = "Registration successful! You can now log in.";
+    registerStatus.className = "success";
+
+    setTimeout(() => {
+      clearFormsAndMessages();
+      showSection("login");
+    }, 1800);
+  });
+
+  // --- Login ---
+
+  function findUser(username) {
+    const users = getUsers();
+    return users.find(u => u.username.toLowerCase() === username.toLowerCase());
+  }
+
+  loginForm.addEventListener("submit", e => {
+    e.preventDefault();
+
+    document.getElementById("loginUsernameError").textContent = "";
+    document.getElementById("loginPasswordError").textContent = "";
+    loginStatus.textContent = "";
+    loginStatus.className = "";
+
+    const username = document.getElementById("loginUsername").value.trim();
+    const password = document.getElementById("loginPassword").value;
+
+    if (!username) {
+      document.getElementById("loginUsernameError").textContent = "Username is required.";
+      return;
+    }
+    if (!password) {
+      document.getElementById("loginPasswordError").textContent = "Password is required.";
+      return;
+    }
+
+    const user = findUser(username);
+    if (!user || user.password !== password) {
+      loginStatus.textContent = "Invalid username or password.";
+      loginStatus.className = "error";
+      return;
+    }
+
+    loginStatus.textContent = "";
+    setCurrentUser(user);
+    initDashboardForUser(user);
+  });
+
+  // --- Logout & navigation ---
+
+  logoutBtn.addEventListener("click", () => {
+    clearCurrentUser();
+    clearFormsAndMessages();
+    showSection("login");
+  });
+
+  dashboardBtn.addEventListener("click", () => {
+    if (currentUser) {
+      initDashboardForUser(currentUser);
+    }
+  });
+
+  if (physicianLogoutBtn) {
+    physicianLogoutBtn.addEventListener("click", () => {
+      clearCurrentUser();
+      clearFormsAndMessages();
+      showSection("login");
+    });
+  }
+
+  showLoginBtn.addEventListener("click", () => {
+    clearFormsAndMessages();
+    showSection("login");
+  });
+
+  showRegisterBtn.addEventListener("click", () => {
+    clearFormsAndMessages();
+    showSection("register");
+  });
+
+  // --- DASHBOARDS ---
+
+  function initDashboardForUser(user) {
+    clearFormsAndMessages();
+    if (user.role === "patient") {
+      showSection("patientDashboard");
+      renderPatientDashboard(user);
+    } else if (user.role === "physician") {
+      showSection("physicianDashboard");
+      renderPhysicianDashboard(user);
     } else {
-        notifIcon.style.display = 'none';
-        notifCount.textContent = '0';
+      alert("Unknown role. Logging out.");
+      clearCurrentUser();
+      showSection("login");
     }
-}
-window.updateAppointmentNotificationIcon = updateAppointmentNotificationIcon;
+  }
 
-function selectPatientForAssignment(patientId) {
-    if (currentRole !== 'hospital') return;
-    localStorage.setItem('currentPatientId', patientId);
-    document.getElementById('physicianAssignment').classList.remove('hidden');
-    document.getElementById('transferPatientSection').classList.remove('hidden');
-}
-window.selectPatientForAssignment = selectPatientForAssignment;
+  // --- Patient Dashboard Logic ---
 
-function assignPhysician() {
-    if (currentRole !== 'hospital') return;
+  // Set DOB input min/max (150 years ago to today)
+  function setDobRange() {
+    if (!patientDobInput) return;
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const dd = String(today.getDate()).padStart(2, "0");
 
-    const patientId = localStorage.getItem('currentPatientId');
-    const physician = document.getElementById('physicianSelect').value;
-    const status = document.getElementById('assignmentStatus');
+    patientDobInput.max = `${yyyy}-${mm}-${dd}`;
+    patientDobInput.min = `${yyyy - 150}-${mm}-${dd}`;
+  }
 
-    if (!patientId || !physician) {
-        status.textContent = 'Please select a physician to assign.';
-        status.className = 'status-message status-error';
-        return;
-    }
+  // Render Patient Dashboard: Fill data fields, load consents and appointments
+  function renderPatientDashboard(user) {
+    patientNameEl.textContent = user.username;
+    setDobRange();
 
-    const assignments = JSON.parse(localStorage.getItem('physicianAssignments')) || {};
-    assignments[patientId] = physician;
-    localStorage.setItem('physicianAssignments', JSON.stringify(assignments));
+    let patients = getPatients();
+    let patientData = patients.find(p => p.patientId.toLowerCase() === user.username.toLowerCase());
 
-    status.textContent = `Assigned ${physician} to patient ${patientId}.`;
-    status.className = 'status-message status-success';
-
-    viewOrgPatients();
-
-    setTimeout(() => {
-        status.textContent = '';
-    }, 3000);
-}
-window.assignPhysician = assignPhysician;
-
-function transferPatientToHospital() {
-    const patientId = localStorage.getItem('currentPatientId');
-    const targetHospital = document.getElementById('transferTargetHospital').value.trim();
-    const transferStatus = document.getElementById('transferStatus');
-
-    if (!patientId || !targetHospital) {
-        transferStatus.textContent = "Please select a patient and input a target hospital Org ID.";
-        transferStatus.className = "status-message status-error";
-        return;
+    // Create patient record if none exists
+    if (!patientData) {
+      patientData = {
+        patientId: user.username,
+        name: user.username,
+        dob: "",
+        allergies: "",
+      };
+      patients.push(patientData);
+      savePatients(patients);
     }
 
-    let patients = JSON.parse(localStorage.getItem('patients')) || [];
+    patientDobInput.value = patientData.dob;
+    patientAllergiesInput.value = patientData.allergies;
+
+    // Load saved sanatorium consents and check checkboxes
+    hydrateSanatoriumChecklist();
+
+    // Render appointments
+    renderPatientAppointments(user.username);
+  }
+
+  patientDataForm.addEventListener("submit", e => {
+    e.preventDefault();
+    patientUpdateStatus.textContent = "";
+    patientUpdateStatus.className = "";
+
+    if (!currentUser || currentUser.role !== "patient") return;
+
+    const dob = patientDobInput.value;
+    const allergies = patientAllergiesInput.value.trim();
+
+    if (dob && new Date(dob) > new Date()) {
+      patientUpdateStatus.textContent = "Date of Birth cannot be in the future.";
+      patientUpdateStatus.className = "error";
+      return;
+    }
+
+    let patients = getPatients();
+    const idx = patients.findIndex(p => p.patientId.toLowerCase() === currentUser.username.toLowerCase());
+    if (idx < 0) return;
+
+    patients[idx].dob = dob;
+    patients[idx].allergies = allergies;
+    savePatients(patients);
+
+    patientUpdateStatus.textContent = "Health data updated successfully.";
+    patientUpdateStatus.className = "success";
+  });
+
+  // --- Sanatorium Consent Checklist Management ---
+
+  // Mark checkboxes according to saved consent
+  function hydrateSanatoriumChecklist() {
+    if (!currentUser || currentUser.role !== "patient") return;
+    const savedConsents = getSanatoriumConsent(currentUser.username.toLowerCase());
+    if (!sanatoriumListDiv) return;
+    const checkboxes = sanatoriumListDiv.querySelectorAll("input[type=checkbox]");
+    checkboxes.forEach(cb => {
+      cb.checked = savedConsents.includes(cb.value);
+    });
+    if (dataSharingStatus) {
+      dataSharingStatus.textContent = "";
+      dataSharingStatus.className = "";
+    }
+  }
+
+  dataSharingForm.addEventListener("submit", e => {
+    e.preventDefault();
+    if (!currentUser || currentUser.role !== "patient") return;
+
+    if (!sanatoriumListDiv) return;
+    const selectedSanatoriums = Array.from(sanatoriumListDiv.querySelectorAll("input[type=checkbox]:checked"))
+      .map(cb => cb.value);
+
+    if (selectedSanatoriums.length === 0) {
+      if (dataSharingStatus) {
+        dataSharingStatus.textContent = "Please select at least one sanatorium to share data with.";
+        dataSharingStatus.className = "error";
+      }
+      return;
+    }
+
+    saveSanatoriumConsent(currentUser.username.toLowerCase(), selectedSanatoriums);
+    if (dataSharingStatus) {
+      dataSharingStatus.textContent = `Data sharing consent saved for ${selectedSanatoriums.length} sanatorium(s).`;
+      dataSharingStatus.className = "success";
+    }
+  });
+
+  // --- Patient Appointments ---
+
+  function renderPatientAppointments(patientId) {
+    const appointments = getAppointments();
+    const filtered = appointments.filter(a => a.patientId.toLowerCase() === patientId.toLowerCase());
+
+    patientAppointmentsList.innerHTML = "";
+    if (filtered.length === 0) {
+      patientAppointmentsList.innerHTML = "<li>No upcoming appointments.</li>";
+      return;
+    }
+
+    filtered.sort((a, b) => new Date(a.date + "T" + a.time) - new Date(b.date + "T" + b.time));
+
+    for (const appt of filtered) {
+      const li = document.createElement("li");
+      li.textContent = `${appt.date} at ${appt.time}`;
+      patientAppointmentsList.appendChild(li);
+    }
+  }
+
+  patientAppointmentForm.addEventListener("submit", e => {
+    e.preventDefault();
+    patientAppointmentStatus.textContent = "";
+    patientAppointmentStatus.className = "";
+
+    if (!currentUser || currentUser.role !== "patient") return;
+
+    const date = patientAppointmentDate.value;
+    const time = patientAppointmentTime.value;
+
+    if (!date || !time) {
+      patientAppointmentStatus.textContent = "Please fill all fields.";
+      patientAppointmentStatus.className = "error";
+      return;
+    }
+
+    if (new Date(date + "T" + time) < new Date()) {
+      patientAppointmentStatus.textContent = "Cannot schedule in the past.";
+      patientAppointmentStatus.className = "error";
+      return;
+    }
+
+    const appointments = getAppointments();
+
+    if (appointments.find(appt => appt.patientId.toLowerCase() === currentUser.username.toLowerCase() && appt.date === date && appt.time === time)) {
+      patientAppointmentStatus.textContent = "Appointment conflict detected.";
+      patientAppointmentStatus.className = "error";
+      return;
+    }
+
+    appointments.push({ patientId: currentUser.username, date, time });
+    saveAppointments(appointments);
+
+    patientAppointmentDate.value = "";
+    patientAppointmentTime.value = "";
+
+    patientAppointmentStatus.textContent = "Appointment scheduled successfully.";
+    patientAppointmentStatus.className = "success";
+
+    renderPatientAppointments(currentUser.username);
+  });
+
+  patientRefreshBtn && patientRefreshBtn.addEventListener("click", () => {
+    if (currentUser && currentUser.role === "patient") {
+      renderPatientAppointments(currentUser.username);
+    }
+  });
+
+  // --- Physician Dashboard ---
+
+  function renderPhysicianDashboard(user) {
+    physicianNameEl.textContent = user.username;
+
+    if (!user.verified) {
+      physicianVerificationStatus.textContent = "Your account is pending verification. Access is restricted.";
+      physicianPatientTableBody.innerHTML = "";
+      physicianPatientDetails.innerHTML = "";
+      return;
+    }
+    physicianVerificationStatus.textContent = "";
+    renderPhysicianPatients();
+  }
+
+  function renderPhysicianPatients() {
+    physicianPatientTableBody.innerHTML = "";
+    physicianPatientDetails.innerHTML = "";
+
+    const patients = getPatients();
+    if (patients.length === 0) {
+      physicianPatientTableBody.innerHTML = "<tr><td colspan='5' style='text-align:center;'>No patients found.</td></tr>";
+      return;
+    }
+
+    for (const p of patients) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${p.patientId}</td>
+        <td>${p.name || "(no name)"}</td>
+        <td>${p.dob || "-"}</td>
+        <td>${p.allergies || "-"}</td>
+        <td><button data-patient-id="${p.patientId}">View Details</button></td>
+      `;
+      physicianPatientTableBody.appendChild(tr);
+    }
+
+    [...physicianPatientTableBody.querySelectorAll("button")].forEach(btn => {
+      btn.addEventListener("click", e => {
+        const pid = e.target.getAttribute("data-patient-id");
+        showPhysicianPatientDetails(pid);
+      });
+    });
+  }
+
+  function showPhysicianPatientDetails(patientId) {
+    const patients = getPatients();
     const patient = patients.find(p => p.patientId === patientId);
+    if (!patient) return;
 
-    if (!patient) {
-        transferStatus.textContent = "Patient data not found.";
-        transferStatus.className = "status-message status-error";
-        return;
+    let html = `
+      <h3>Details for Patient: ${patient.patientId}</h3>
+      <p><strong>Name:</strong> ${patient.name || "(none)"}</p>
+      <p><strong>Date of Birth:</strong> ${patient.dob || "-"}</p>
+      <p><strong>Allergies:</strong> ${patient.allergies || "-"}</p>
+    `;
+
+    // Sanatorium consents
+    const sanatoriums = getSanatoriumConsent(patientId.toLowerCase());
+    if (sanatoriums.length > 0) {
+      html += "<p><strong>Authorized Sanatoriums:</strong></p><ul>";
+      sanatoriums.forEach(url => {
+        html += `<li>${url}</li>`;
+      });
+      html += "</ul>";
+    } else {
+      html += "<p><em>No sanatorium consent data.</em></p>";
     }
 
-    // Add consent for target hospital
-    patient.consent[targetHospital] = true;
-    localStorage.setItem('patients', JSON.stringify(patients));
-
-    transferStatus.textContent = `Transferred patient ${patientId} data to hospital ${targetHospital} successfully.`;
-    transferStatus.className = "status-message status-success";
-
-    setTimeout(() => {
-        transferStatus.textContent = '';
-    }, 3500);
-}
-window.transferPatientToHospital = transferPatientToHospital;
-
-function populateAppointmentPatients() {
-    if (!currentRole || currentRole === 'patient') return;
-
-    const patients = JSON.parse(localStorage.getItem('patients')) || [];
-    const select = document.getElementById('appointmentPatientId');
-
-    select.innerHTML = `<option value="">Select Patient</option>`;
-
-    patients
-        .filter(p => p.consent[currentRole])
-        .forEach(p => {
-            const option = document.createElement('option');
-            option.value = p.patientId;
-            option.textContent = `${p.patientId} - ${p.fullData.name}`;
-            select.appendChild(option);
-        });
-}
-window.populateAppointmentPatients = populateAppointmentPatients;
-
-function scheduleAppointment() {
-    if (currentRole === 'patient') return;
-
-    const patientId = document.getElementById('appointmentPatientId').value;
-    const date = document.getElementById('appointmentDate').value;
-    const time = document.getElementById('appointmentTime').value;
-    const status = document.getElementById('appointmentStatus');
-
-    if (!patientId || !date || !time) {
-        status.textContent = 'Please fill all appointment fields.';
-        status.className = 'status-message status-error';
-        return;
+    // Show appointments
+    const appointments = getAppointments();
+    const patientAppts = appointments.filter(a => a.patientId === patientId);
+    if (patientAppts.length === 0) {
+      html += "<p><em>No appointments scheduled.</em></p>";
+    } else {
+      html += "<p><strong>Appointments:</strong></p><ul>";
+      patientAppts.forEach(a => {
+        html += `<li>${a.date} at ${a.time}</li>`;
+      });
+      html += "</ul>";
     }
 
-    let appointments = JSON.parse(localStorage.getItem('appointments')) || {};
-    if (!appointments[patientId]) appointments[patientId] = [];
+    physicianPatientDetails.innerHTML = html;
+  }
 
-    // Check for conflicting appointment (same date/time)
-    let conflict = appointments[patientId].some(app => app.date === date && app.time === time);
-    if(conflict) {
-        status.textContent = `Appointment for ${patientId} at ${date} ${time} already exists.`;
-        status.className = 'status-message status-error';
-        return;
+  physicianRefreshBtn && physicianRefreshBtn.addEventListener("click", () => {
+    if (currentUser && currentUser.role === "physician" && currentUser.verified) {
+      renderPhysicianPatients();
     }
+  });
 
-    appointments[patientId].push({ org: currentRole, date, time });
-    localStorage.setItem('appointments', JSON.stringify(appointments));
+  // --- Initialization on page load ---
 
-    status.textContent = `Appointment scheduled for patient ${patientId} on ${date} at ${time}.`;
-    status.className = 'status-message status-success';
-
-    populateAppointmentPatients();
-
-    setTimeout(() => {
-        status.textContent = '';
-    }, 3000);
-}
-window.scheduleAppointment = scheduleAppointment;
-
-function displayPatientAppointments(patientId) {
-    const container = document.getElementById('patientAppointments');
-    container.innerHTML = '';
-    const appointments = JSON.parse(localStorage.getItem('appointments')) || {};
-
-    if (!appointments[patientId] || !Array.isArray(appointments[patientId]) || appointments[patientId].length === 0) {
-        container.innerHTML = '<p>No appointments scheduled.</p>';
-        return;
+  window.addEventListener("DOMContentLoaded", () => {
+    const user = loadCurrentUser();
+    if (user) {
+      initDashboardForUser(user);
+    } else {
+      showSection("register");
     }
-
-    const ul = document.createElement('ul');
-    ul.className = 'list-disc pl-5';
-
-    appointments[patientId].forEach(app => {
-        const li = document.createElement('li');
-        li.textContent = `${app.org}: ${app.date} at ${app.time}`;
-        ul.appendChild(li);
-    });
-    container.appendChild(ul);
-}
-window.displayPatientAppointments = displayPatientAppointments;
-
-function checkReminders() {
-    if (!currentRole || currentRole === 'patient') return;
-
-    const appointments = JSON.parse(localStorage.getItem('appointments')) || {};
-    const now = new Date();
-    const upcoming = [];
-
-    Object.entries(appointments).forEach(([patientId, apps]) => {
-        if (Array.isArray(apps)) {
-            apps.forEach(app => {
-                const appTime = new Date(`${app.date}T${app.time}`);
-                if (app.org === currentRole && appTime > now) {
-                    upcoming.push(`${patientId}: ${app.date} at ${app.time}`);
-                }
-            });
-        }
-    });
-
-    alert(upcoming.length > 0 ? `Upcoming appointments:\n${upcoming.join('\n')}` : 'No upcoming appointments.');
-}
-window.checkReminders = checkReminders;
-
-function setExamplePatient() {
-    document.getElementById('apiPayload').value = JSON.stringify({
-        organizationId: "ORG001",
-        patientId: "PAT002",
-        name: "Jane Doe",
-        dob: "1990-01-01",
-        medicalData: "Allergies: None",
-        consent: {
-            pharmacy: true,
-            clinic: false,
-            dentalClinic: true,
-            hospital: true
-        }
-    }, null, 2);
-
-    document.getElementById('apiMethod').value = "POST /api/patient";
-}
-window.setExamplePatient = setExamplePatient;
-
-function testApi() {
-    const method = document.getElementById('apiMethod').value;
-    const orgId = document.getElementById('apiOrgId').value.trim();
-    const patientId = document.getElementById('apiPatientId').value.trim();
-    const payloadRaw = document.getElementById('apiPayload').value;
-    const responseDiv = document.getElementById('apiResponse');
-
-    try {
-        const payload = payloadRaw ? JSON.parse(payloadRaw) : {};
-
-        if (method === 'POST /api/patient') {
-            // Validate payload
-            const requiredFields = ['organizationId', 'patientId', 'name', 'dob', 'medicalData', 'consent'];
-            const errors = requiredFields.filter(f => !payload[f]);
-            if (errors.length > 0) {
-                responseDiv.textContent = JSON.stringify({ error: `Missing fields: ${errors.join(', ')}` }, null, 2);
-                return;
-            }
-            if (typeof payload.consent !== 'object') {
-                responseDiv.textContent = JSON.stringify({ error: `Consent must be an object` }, null, 2);
-                return;
-            }
-
-            let patients = JSON.parse(localStorage.getItem('patients')) || [];
-            const patientData = {
-                patientId: payload.patientId,
-                fullData: { name: payload.name, dob: payload.dob, medicalData: payload.medicalData },
-                consent: {
-                    pharmacy: !!payload.consent.pharmacy,
-                    clinic: !!payload.consent.clinic,
-                    dentalClinic: !!payload.consent.dentalClinic,
-                    hospital: !!payload.consent.hospital
-                },
-                hash: simpleHash(payload.patientId + payload.name + payload.dob)
-            };
-            const existingIndex = patients.findIndex(p => p.patientId === payload.patientId);
-            if(existingIndex !== -1) {
-                patients[existingIndex] = patientData;
-            } else {
-                patients.push(patientData);
-            }
-            localStorage.setItem('patients', JSON.stringify(patients));
-            responseDiv.textContent = JSON.stringify({ status: 'success', message: `Patient ${payload.patientId} added/updated` }, null, 2);
-        } else if (method === 'GET /api/patient') {
-            if (!orgId || !patientId) {
-                responseDiv.textContent = JSON.stringify({ error: 'Missing orgId or patientId' }, null, 2);
-                return;
-            }
-            let patients = JSON.parse(localStorage.getItem('patients')) || [];
-            const patient = patients.find(p => p.patientId === patientId);
-            if (!patient) {
-                responseDiv.textContent = JSON.stringify({ error: 'Patient not found' }, null, 2);
-                return;
-            }
-            if (!patient.consent[currentRole]) {
-                responseDiv.textContent = JSON.stringify({ error: 'No consent for this organization' }, null, 2);
-                return;
-            }
-            responseDiv.textContent = JSON.stringify({
-                patientId: patient.patientId,
-                name: patient.fullData.name,
-                dob: patient.fullData.dob,
-                medicalData: patient.fullData.medicalData
-            }, null, 2);
-        }
-    } catch (e) {
-        responseDiv.textContent = JSON.stringify({ error: `Invalid JSON: ${e.message}` }, null, 2);
-    }
-}
-window.testApi = testApi;
-
-// On page load, show role selection and add event listener for notification icon click
-window.onload = function() {
-    showRoleSelect();
-
-    const notifIcon = document.getElementById('appointmentNotificationIcon');
-    if (notifIcon) {
-        notifIcon.addEventListener('click', () => {
-            if(currentRole === 'patient') {
-                showSection('view');
-            }
-        });
-    }
-};
+    setDobRange();
+  });
+})();
