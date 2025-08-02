@@ -108,6 +108,8 @@
       padding: 6px 10px;
       color: white;
       border-radius: 4px;
+      border: none;
+      cursor: pointer;
     }
     .cancelApptBtn:hover {
       background-color: #7f1d1d;
@@ -184,6 +186,18 @@
     #notificationDropdown ul li:last-child {
       border-bottom: none;
     }
+    /* CSV Import/Export styles */
+    #csvControls {
+      margin-top: 20px;
+      margin-bottom: 20px;
+    }
+    #csvControls input[type="file"] {
+      margin-right: 10px;
+    }
+    #csvStatus {
+      margin-top: 8px;
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
@@ -227,7 +241,7 @@
       <div id="registerRoleError" class="error" role="alert" aria-live="assertive"></div>
       <div id="roleHelp" style="font-size: 0.9rem; margin-top: 3px; color: #555;">
         If you are a physician, please provide your license number below for verification.<br />
-        If you are an admin, no extra info required.
+        Admin users can register sanatoriums.
       </div>
 
       <div id="physicianVerificationFields" class="hidden" style="margin-top: 15px;">
@@ -235,7 +249,6 @@
         <input id="licenseNumber" name="licenseNumber" type="text" placeholder="e.g. MD123456" autocomplete="off" aria-describedby="licenseNumberHelp" aria-invalid="false" />
         <div id="licenseNumberError" class="error" role="alert" aria-live="assertive"></div>
         <small id="licenseNumberHelp" class="sr-only">Minimum 5 characters required.</small>
-
         <label>
           <input type="checkbox" id="verifiedCheckbox" aria-checked="false" /> Simulate Verification (check if verified)
         </label>
@@ -245,10 +258,7 @@
       <div id="registerStatus" role="alert" aria-live="assertive"></div>
     </form>
 
-    <p style="margin-top: 15px;">
-      Already have an account? 
-      <button id="showLoginBtn" style="color: #2563eb; background:none; border:none; cursor:pointer; text-decoration: underline;" aria-label="Switch to login form">Login here</button>
-    </p>
+    <p style="margin-top:15px;">Already have an account? <button id="showLoginBtn" style="color:#2563eb;background:none;border:none;cursor:pointer;text-decoration:underline;" aria-label="Switch to login form">Login here</button></p>
   </section>
 
   <!-- Login -->
@@ -269,17 +279,14 @@
       <div id="loginStatus" role="alert" aria-live="assertive"></div>
     </form>
 
-    <p style="margin-top: 15px;">
-      Don't have an account? 
-      <button id="showRegisterBtn" style="color: #2563eb; background:none; border:none; cursor:pointer; text-decoration: underline;" aria-label="Switch to registration form">Register here</button>
-    </p>
+    <p style="margin-top:15px;">Don't have an account? <button id="showRegisterBtn" style="color:#2563eb;background:none;border:none;cursor:pointer;text-decoration:underline;" aria-label="Switch to registration form">Register here</button></p>
   </section>
 
   <!-- Admin Dashboard -->
   <section id="adminDashboard" class="section hidden" aria-label="Admin Dashboard" role="region">
     <h2>Welcome, <span id="adminName"></span> (Admin)</h2>
 
-    <h3>Register Sanatorium</h3>
+    <h3>Register Sanatorium (Only One Allowed)</h3>
     <form id="adminSanatoriumForm" role="form" aria-describedby="adminSanatoriumStatus">
       <label for="adminSanatoriumName">Sanatorium Name</label>
       <input id="adminSanatoriumName" required placeholder="e.g. Riverside Clinic" aria-required="true" />
@@ -287,9 +294,16 @@
       <div id="adminSanatoriumStatus" class="success" style="margin-top: 8px;" role="alert" aria-live="assertive"></div>
     </form>
 
+    <!-- CSV Import/Export Controls -->
+    <div id="csvControls">
+      <input type="file" id="bulkSanatoriumCsvImport" accept=".csv,text/csv" aria-label="Bulk Sanatorium CSV Import" />
+      <button type="button" id="bulkExportBtn">Export Sanatoriums to CSV</button>
+      <div id="csvStatus" role="alert" aria-live="assertive" style="margin-top:8px;"></div>
+    </div>
+
     <h3>Registered Sanatoriums</h3>
-    <table style="max-width: 500px;" aria-describedby="sanatoriumListAdmin">
-      <thead><tr><th>Name</th><th>Code</th></tr></thead>
+    <table style="max-width: 700px;" aria-describedby="sanatoriumListAdmin">
+      <thead><tr><th>Name</th><th>Code</th><th>Admin</th></tr></thead>
       <tbody id="sanatoriumListAdmin"></tbody>
     </table>
 
@@ -311,37 +325,35 @@
     <button id="patientRefreshBtn" style="max-width: 140px; margin-bottom: 15px;">Refresh Data</button>
 
     <h3>Your Health Data</h3>
-    <div id="patientHealthData">
-      <form id="patientDataForm" novalidate role="form">
-        <div style="max-width: 320px; margin-bottom: 1rem;">
-          <label for="patientDob">Date of Birth <span aria-hidden="true" style="color:red;">*</span></label>
-          <input id="patientDob" type="date" aria-describedby="dobHelp" required aria-required="true" />
-          <small id="dobHelp" style="color:#555; font-size: 0.9rem;">
-            Select your birth date (between 150 years ago and today).
-          </small>
-        </div>
-        <div style="max-width: 480px; margin-bottom: 1rem;">
-          <label for="patientAllergies">Allergies</label>
-          <input id="patientAllergies" type="text" placeholder="List any allergies (comma separated)" />
-        </div>
-        <button type="submit" style="max-width: 140px; margin-top: 10px;" aria-label="Update health data">Update Health Data</button>
-        <div id="patientUpdateStatus" role="alert" aria-live="assertive" style="margin-top:8px;"></div>
-      </form>
-    </div>
+    <form id="patientDataForm" novalidate role="form">
+      <div style="max-width: 320px; margin-bottom: 1rem;">
+        <label for="patientDob">Date of Birth <span aria-hidden="true" style="color:red;">*</span></label>
+        <input id="patientDob" type="date" placeholder="Select your birth date" aria-describedby="dobHelp" required />
+        <small id="dobHelp" style="color:#555; font-size: 0.9rem;">
+          Select your birth date (between 150 years ago and today).
+        </small>
+      </div>
 
-    <hr style="margin: 2rem 0;" />
+      <div style="max-width: 480px; margin-bottom: 1rem;">
+        <label for="patientAllergies">Allergies</label>
+        <input id="patientAllergies" type="text" placeholder="List any allergies (comma separated)" />
+      </div>
+
+      <button type="submit" style="max-width: 140px; margin-top: 10px;" aria-label="Update health data">Update Health Data</button>
+      <div id="patientUpdateStatus" role="alert" aria-live="assertive" style="margin-top:8px;"></div>
+    </form>
+
+    <hr style="margin:2rem 0" />
 
     <h3>Privacy and Data Control</h3>
-    <button id="deleteMyDataBtn" style="background:#dc2626; color:white; max-width: 180px;">Delete My Data</button>
+    <button id="deleteMyDataBtn" style="background:#dc2626; color:white; max-width:180px;">Delete My Data</button>
     <div id="dataDeletionStatus" role="alert" aria-live="assertive" style="margin-top:8px;"></div>
 
     <hr style="margin: 2rem 0;" />
 
-    <h3>Share Personal Data with Sanatorium (by Code)</h3>
+    <h3>Share Personal Data with Sanatorium by Code</h3>
     <form id="dataSharingForm" novalidate role="form" aria-describedby="dataSharingStatus">
-      <p style="max-width: 500px; color: #444; margin-bottom: 10px;">
-        Enter the sanatorium code provided by your healthcare provider:
-      </p>
+      <p style="max-width: 500px; color:#444; margin-bottom: 10px;">Enter the sanatorium code provided by your healthcare provider:</p>
       <input id="sanatoriumCodeInput" placeholder="Enter code, e.g. SNT1234" required aria-required="true" aria-invalid="false" style="max-width: 300px;" />
       <button type="submit" style="max-width: 180px;" aria-label="Send personal data to sanatorium">Send Data</button>
       <div id="dataSharingStatus" role="alert" aria-live="assertive" style="margin-top:8px;"></div>
@@ -350,17 +362,15 @@
     <hr style="margin: 2rem 0;" />
 
     <h3>Your Appointments</h3>
-    <ul id="patientAppointmentsList" style="margin-bottom: 1.5rem;" aria-label="Patient appointments list">
-      <!-- Populated dynamically -->
-    </ul>
+    <ul id="patientAppointmentsList" style="margin-bottom: 1.5rem;"></ul>
 
     <h3>Schedule New Appointment</h3>
     <form id="patientAppointmentForm" novalidate role="form" aria-describedby="patientAppointmentStatus">
       <label for="patientAppointmentDate">Date <span aria-hidden="true" style="color:red;">*</span></label>
-      <input id="patientAppointmentDate" type="date" required aria-required="true" style="max-width: 180px; margin-bottom: 8px;" />
+      <input id="patientAppointmentDate" type="date" required style="max-width: 180px; margin-bottom: 8px;" />
 
       <label for="patientAppointmentTime">Time <span aria-hidden="true" style="color:red;">*</span></label>
-      <input id="patientAppointmentTime" type="time" required aria-required="true" style="max-width: 180px; margin-bottom: 8px;" />
+      <input id="patientAppointmentTime" type="time" required style="max-width: 180px; margin-bottom: 8px;" />
 
       <button type="submit" style="max-width: 140px; margin-top: 10px;" aria-label="Schedule Appointment">Schedule Appointment</button>
       <div id="patientAppointmentStatus" role="alert" aria-live="assertive" style="margin-top:8px;"></div>
@@ -370,8 +380,11 @@
   <!-- Physician Dashboard -->
   <section id="physicianDashboard" class="section hidden" aria-label="Physician Dashboard" role="region">
     <h2>Welcome, Dr. <span id="physicianName"></span> (Physician)</h2>
+
     <div id="physicianVerificationStatus" style="color:#b91c1c; font-weight:700;"></div>
+
     <button id="physicianRefreshBtn" style="max-width: 160px; margin-bottom: 20px;">Refresh Patient List</button>
+
     <h3>Patient Records</h3>
     <table aria-label="Patient records" role="grid">
       <thead>
@@ -383,7 +396,9 @@
         <!-- Filled dynamically -->
       </tbody>
     </table>
+
     <div id="physicianPatientDetails" style="margin-top: 20px;" aria-live="polite" aria-atomic="true"></div>
+
     <button id="physicianLogoutBtn" style="margin-top: 30px; background:#b91c1c;">Logout</button>
   </section>
 
