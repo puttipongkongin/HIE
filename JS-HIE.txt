@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  // --- DOM Elements ---
+  /*** DOM Elements ***/
   const sections = {
     register: document.getElementById("registerSection"),
     login: document.getElementById("loginSection"),
@@ -11,7 +11,6 @@
     nav: document.getElementById("nav"),
   };
 
-  // Registration/Login/Admin Forms and controls
   const registerForm = document.getElementById("registerForm");
   const loginForm = document.getElementById("loginForm");
   const registerRole = document.getElementById("registerRole");
@@ -19,7 +18,16 @@
   const registerStatus = document.getElementById("registerStatus");
   const loginStatus = document.getElementById("loginStatus");
 
-  // Patient Dashboard Elements
+  const adminNameEl = document.getElementById("adminName");
+  const adminSanatoriumForm = document.getElementById("adminSanatoriumForm");
+  const adminSanatoriumNameInput = document.getElementById("adminSanatoriumName");
+  const adminSanatoriumStatus = document.getElementById("adminSanatoriumStatus");
+  const sanatoriumListAdmin = document.getElementById("sanatoriumListAdmin");
+  const adminForwardForm = document.getElementById("adminForwardForm");
+  const adminForwardUser = document.getElementById("adminForwardUser");
+  const adminForwardCode = document.getElementById("adminForwardCode");
+  const adminForwardStatus = document.getElementById("adminForwardStatus");
+
   const patientNameEl = document.getElementById("patientName");
   const patientDataForm = document.getElementById("patientDataForm");
   const patientDobInput = document.getElementById("patientDob");
@@ -34,19 +42,9 @@
   const sanatoriumCodeInput = document.getElementById("sanatoriumCodeInput");
   const dataSharingForm = document.getElementById("dataSharingForm");
   const dataSharingStatus = document.getElementById("dataSharingStatus");
+  const deleteMyDataBtn = document.getElementById("deleteMyDataBtn");
+  const dataDeletionStatus = document.getElementById("dataDeletionStatus");
 
-  // Admin Dashboard Elements
-  const adminNameEl = document.getElementById("adminName");
-  const adminSanatoriumForm = document.getElementById("adminSanatoriumForm");
-  const adminSanatoriumName = document.getElementById("adminSanatoriumName");
-  const adminSanatoriumStatus = document.getElementById("adminSanatoriumStatus");
-  const sanatoriumListAdmin = document.getElementById("sanatoriumListAdmin");
-  const adminForwardForm = document.getElementById("adminForwardForm");
-  const adminForwardUser = document.getElementById("adminForwardUser");
-  const adminForwardCode = document.getElementById("adminForwardCode");
-  const adminForwardStatus = document.getElementById("adminForwardStatus");
-
-  // Physician Dashboard Elements
   const physicianNameEl = document.getElementById("physicianName");
   const physicianVerificationStatus = document.getElementById("physicianVerificationStatus");
   const physicianPatientTableBody = document.getElementById("physicianPatientTableBody");
@@ -54,147 +52,156 @@
   const physicianRefreshBtn = document.getElementById("physicianRefreshBtn");
   const physicianLogoutBtn = document.getElementById("physicianLogoutBtn");
 
-  // Nav Buttons
-  const nav = sections.nav;
   const dashboardBtn = document.getElementById("dashboardBtn");
   const logoutBtn = document.getElementById("logoutBtn");
   const showLoginBtn = document.getElementById("showLoginBtn");
   const showRegisterBtn = document.getElementById("showRegisterBtn");
 
-  // Current User in session
+  const notificationBell = document.getElementById("notificationBell");
+  const notificationCount = document.getElementById("notificationCount");
+  const notificationDropdown = document.getElementById("notificationDropdown");
+  const notificationList = document.getElementById("notificationList");
+
+  // Local Storage Keys
+  const STORAGE_KEYS = {
+    USERS: "hie_users",
+    SANATORIUMS: "hie_sanatoriums",
+    APPOINTMENTS: "hie_appointments",
+    CONSENTS: "hie_consents",
+    PATIENTS: "hie_patients",
+    SESSION_USER: "hie_currentUser",
+  };
+
   let currentUser = null;
+  let notifications = [];
 
-  // --- LocalStorage helpers ---
-  function getUsers() {
+  // Get and Save in localStorage
+  const getData = (key) => {
     try {
-      return JSON.parse(localStorage.getItem("users")) || [];
+      return JSON.parse(localStorage.getItem(key)) || [];
     } catch {
       return [];
     }
-  }
-  function saveUsers(users) {
-    localStorage.setItem("users", JSON.stringify(users));
-  }
-  function getPatients() {
-    try {
-      return JSON.parse(localStorage.getItem("patients")) || [];
-    } catch {
-      return [];
-    }
-  }
-  function savePatients(patients) {
-    localStorage.setItem("patients", JSON.stringify(patients));
-  }
-  function getAppointments() {
-    try {
-      return JSON.parse(localStorage.getItem("appointments")) || [];
-    } catch {
-      return [];
-    }
-  }
-  function saveAppointments(appointments) {
-    localStorage.setItem("appointments", JSON.stringify(appointments));
-  }
-  function getSanatoriumConsent(patientId) {
-    try {
-      return JSON.parse(localStorage.getItem(`sanatoriumConsent_${patientId}`)) || [];
-    } catch {
-      return [];
-    }
-  }
-  function saveSanatoriumConsent(patientId, selected) {
-    localStorage.setItem(`sanatoriumConsent_${patientId}`, JSON.stringify(selected));
-  }
+  };
+  const saveData = (key, value) => localStorage.setItem(key, JSON.stringify(value));
 
-  function getSanatoriums() {
-    try {
-      return JSON.parse(localStorage.getItem("sanatoriums")) || [];
-    } catch {
-      return [];
-    }
-  }
-  function saveSanatoriums(sanatoriums) {
-    localStorage.setItem("sanatoriums", JSON.stringify(sanatoriums));
-  }
+  // Users Management
+  const getUsers = () => getData(STORAGE_KEYS.USERS);
+  const saveUsers = (users) => saveData(STORAGE_KEYS.USERS, users);
 
-  // --- Session ---
+  // Sanatoriums
+  const getSanatoriums = () => getData(STORAGE_KEYS.SANATORIUMS);
+  const saveSanatoriums = (data) => saveData(STORAGE_KEYS.SANATORIUMS, data);
+
+  // Appointments
+  const getAppointments = () => getData(STORAGE_KEYS.APPOINTMENTS);
+  const saveAppointments = (data) => saveData(STORAGE_KEYS.APPOINTMENTS, data);
+
+  // Patients data (health info)
+  const getPatients = () => getData(STORAGE_KEYS.PATIENTS);
+  const savePatients = (data) => saveData(STORAGE_KEYS.PATIENTS, data);
+
+  // Consents (per patient username, array of sanatorium name/code)
+  const getConsents = () => {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEYS.CONSENTS)) || {};
+    } catch {
+      return {};
+    }
+  };
+  const saveConsents = (data) => localStorage.setItem(STORAGE_KEYS.CONSENTS, JSON.stringify(data));
+
+  // Session User
   function setCurrentUser(user) {
-    localStorage.setItem("currentUser", JSON.stringify(user));
+    localStorage.setItem(STORAGE_KEYS.SESSION_USER, JSON.stringify(user));
     currentUser = user;
   }
   function loadCurrentUser() {
     try {
-      const usr = localStorage.getItem("currentUser");
-      if (!usr) return null;
-      currentUser = JSON.parse(usr);
-      return currentUser;
+      const u = localStorage.getItem(STORAGE_KEYS.SESSION_USER);
+      return u ? JSON.parse(u) : null;
     } catch {
       return null;
     }
   }
   function clearCurrentUser() {
-    localStorage.removeItem("currentUser");
+    localStorage.removeItem(STORAGE_KEYS.SESSION_USER);
     currentUser = null;
   }
 
-  // --- UI Navigation ---
+  // Escape html
+  const escapeHtml = (text) => {
+    if (typeof text !== "string") return text;
+    return text.replace(/[&<>"']/g, (m) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    })[m]);
+  };
+
+  // Generate unique sanatorium code
+  const generateSanatoriumCode = () =>
+    "SNT" + Math.floor(1000 + Math.random() * 9000);
+
+  // Show/Hide sections
   function showSection(name) {
-    for (const key in sections) {
-      if (key === name) sections[key].classList.remove("hidden");
-      else sections[key].classList.add("hidden");
-    }
-    if (name === "patientDashboard" || name === "physicianDashboard" || name === "adminDashboard") {
-      nav.classList.remove("hidden");
+    Object.keys(sections).forEach(k =>
+      sections[k].classList.toggle("hidden", k !== name)
+    );
+    if (["adminDashboard", "patientDashboard", "physicianDashboard"].includes(name)) {
+      sections.nav.classList.remove("hidden");
     } else {
-      nav.classList.add("hidden");
+      sections.nav.classList.add("hidden");
     }
   }
 
-  function clearFormsAndMessages() {
-    const errorIds = ["registerUsernameError", "registerPasswordError", "registerRoleError", "licenseNumberError", "loginUsernameError", "loginPasswordError"];
-    errorIds.forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.textContent = "";
-    });
-    const inputs = ["registerUsername", "registerPassword", "licenseNumber", "loginUsername", "loginPassword", "adminSanatoriumName", "adminForwardUser", "adminForwardCode", "sanatoriumCodeInput", "patientAppointmentDate", "patientAppointmentTime"];
-    inputs.forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.value = "";
-    });
-    registerStatus.textContent = "";
-    registerStatus.className = "";
-    loginStatus.textContent = "";
-    loginStatus.className = "";
-    patientUpdateStatus.textContent = "";
-    patientUpdateStatus.className = "";
-    patientAppointmentStatus.textContent = "";
-    patientAppointmentStatus.className = "";
-    dataSharingStatus.textContent = "";
-    dataSharingStatus.className = "";
-    adminSanatoriumStatus.textContent = "";
-    adminForwardStatus.textContent = "";
-    adminSanatoriumStatus.className = "";
-    adminForwardStatus.className = "";
-    physicianVerificationStatus.textContent = "";
-    physicianPatientTableBody.innerHTML = "";
-    physicianPatientDetails.innerHTML = "";
-  }
-
-  // --- Register Role Change ---
-  registerRole.addEventListener("change", () => {
-    if (registerRole.value === "physician") {
-      physicianVerificationFields.classList.remove("hidden");
+  // Notifications handling
+  function updateNotificationUI() {
+    if (notifications.length > 0) {
+      notificationCount.style.display = "inline-block";
+      notificationCount.textContent = notifications.length;
+      notificationBell.setAttribute("aria-expanded", "false");
+      notificationDropdown.style.display = "none";
     } else {
-      physicianVerificationFields.classList.add("hidden");
+      notificationCount.style.display = "none";
+      notificationDropdown.style.display = "none";
+    }
+    notificationList.innerHTML = notifications
+      .slice()
+      .reverse()
+      .map((n) => `<li>${escapeHtml(n)}</li>`)
+      .join("");
+  }
+  notificationBell.addEventListener("click", () => {
+    const expanded = notificationBell.getAttribute("aria-expanded") === "true";
+    if (expanded) {
+      notificationDropdown.style.display = "none";
+      notificationBell.setAttribute("aria-expanded", "false");
+    } else {
+      notificationDropdown.style.display = "block";
+      notificationBell.setAttribute("aria-expanded", "true");
+      notifications = [];
+      updateNotificationUI();
     }
   });
+  function notify(message) {
+    notifications.push(message);
+    updateNotificationUI();
+  }
 
-  // --- Registration ---
-  registerForm.addEventListener("submit", e => {
+  // Registration role selection
+  registerRole.addEventListener("change", () => {
+    physicianVerificationFields.classList.toggle(registerRole.value !== "physician");
+  });
+
+  // Registration submit
+  registerForm.addEventListener("submit", (e) => {
     e.preventDefault();
-    ["registerUsernameError", "registerPasswordError", "registerRoleError", "licenseNumberError"].forEach(id => {
+    ["registerUsernameError", "registerPasswordError", "registerRoleError", "licenseNumberError"].forEach((id) => {
       const el = document.getElementById(id);
-      if (el) el.textContent = "";
+      if(el) el.textContent = "";
     });
     registerStatus.textContent = "";
     registerStatus.className = "";
@@ -205,22 +212,25 @@
     const licenseNumber = document.getElementById("licenseNumber").value.trim();
     const verified = document.getElementById("verifiedCheckbox").checked;
 
-    // Validation
-    const errors = {};
-    if (!username || username.length < 3) errors.username = "Username must be at least 3 characters.";
-    if (!password || password.length < 6) errors.password = "Password must be at least 6 characters.";
-    if (!role || !["patient", "physician", "admin"].includes(role)) errors.role = "Please select a valid role.";
-    if (role === "physician" && (!licenseNumber || licenseNumber.length <5)) errors.licenseNumber = "Valid license number required for physicians.";
-
-    if (Object.keys(errors).length > 0) {
-      if (errors.username) document.getElementById("registerUsernameError").textContent = errors.username;
-      if (errors.password) document.getElementById("registerPasswordError").textContent = errors.password;
-      if (errors.role) document.getElementById("registerRoleError").textContent = errors.role;
-      if (errors.licenseNumber) document.getElementById("licenseNumberError").textContent = errors.licenseNumber;
-      return;
+    let valid = true;
+    if (!username || username.length < 3) {
+      document.getElementById("registerUsernameError").textContent = "Username must be at least 3 characters.";
+      valid = false;
     }
+    if (!password || password.length < 6) {
+      document.getElementById("registerPasswordError").textContent = "Password must be at least 6 characters.";
+      valid = false;
+    }
+    if (!["patient", "physician", "admin"].includes(role)) {
+      document.getElementById("registerRoleError").textContent = "Please select a valid role.";
+      valid = false;
+    }
+    if (role === "physician" && (!licenseNumber || licenseNumber.length < 5)) {
+      document.getElementById("licenseNumberError").textContent = "Valid license number required for physicians.";
+      valid = false;
+    }
+    if (!valid) return;
 
-    // Check duplicate user
     const users = getUsers();
     if (users.find(u => u.username.toLowerCase() === username.toLowerCase())) {
       registerStatus.textContent = "Username already exists.";
@@ -234,25 +244,25 @@
       password,
       role,
       licenseNumber: role === "physician" ? licenseNumber : "",
-      verified: role === "physician" ? verified : true, 
+      verified: role === "physician" ? verified : true,
     };
 
     users.push(newUser);
     saveUsers(users);
+    notify(`User registered: ${username}`);
 
-    registerStatus.textContent = "Registration successful! You can now log in.";
+    registerStatus.textContent = "Registration successful! You can now login.";
     registerStatus.className = "success";
 
     setTimeout(() => {
       clearFormsAndMessages();
       showSection("login");
-    }, 1800);
+    }, 1500);
   });
 
-  // --- Login ---
-  loginForm.addEventListener("submit", e => {
+  // Login submit
+  loginForm.addEventListener("submit", (e) => {
     e.preventDefault();
-
     document.getElementById("loginUsernameError").textContent = "";
     document.getElementById("loginPasswordError").textContent = "";
     loginStatus.textContent = "";
@@ -272,7 +282,6 @@
 
     const users = getUsers();
     const user = users.find(u => u.username.toLowerCase() === username.toLowerCase());
-
     if (!user || user.password !== password) {
       loginStatus.textContent = "Invalid username or password.";
       loginStatus.className = "error";
@@ -283,7 +292,7 @@
     initDashboardForUser(user);
   });
 
-  // --- Logout and Nav Buttons ---
+  // Logout and navigation buttons
   logoutBtn.addEventListener("click", () => {
     clearCurrentUser();
     clearFormsAndMessages();
@@ -292,13 +301,6 @@
   dashboardBtn.addEventListener("click", () => {
     if (currentUser) initDashboardForUser(currentUser);
   });
-  if (physicianLogoutBtn) {
-    physicianLogoutBtn.addEventListener("click", () => {
-      clearCurrentUser();
-      clearFormsAndMessages();
-      showSection("login");
-    });
-  }
   showLoginBtn.addEventListener("click", () => {
     clearFormsAndMessages();
     showSection("login");
@@ -308,336 +310,374 @@
     showSection("register");
   });
 
-  // --- Dashboard Initialization ---
+  // Clear forms and messages helpers
+  function clearFormsAndMessages() {
+    ["registerUsernameError", "registerPasswordError", "registerRoleError", "licenseNumberError",
+      "registerStatus", "loginUsernameError", "loginPasswordError", "loginStatus",
+      "adminSanatoriumStatus", "adminForwardStatus",
+      "patientUpdateStatus", "patientAppointmentStatus", "dataSharingStatus", "dataDeletionStatus"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = "";
+    });
+    ["registerUsername", "registerPassword", "licenseNumber", "loginUsername", "loginPassword",
+      "adminSanatoriumName", "adminForwardUser", "adminForwardCode",
+      "sanatoriumCodeInput", "patientAppointmentDate", "patientAppointmentTime",
+      "patientDob", "patientAllergies"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = "";
+    });
+  }
+
+  // Initialize dashboard based on role
   function initDashboardForUser(user) {
     clearFormsAndMessages();
-    if (user.role === "patient") {
-      showSection("patientDashboard");
-      renderPatientDashboard(user);
-    } else if (user.role === "physician") {
-      showSection("physicianDashboard");
-      renderPhysicianDashboard(user);
-    } else if (user.role === "admin") {
-      showSection("adminDashboard");
-      adminNameEl.textContent = user.username;
-      renderSanatoriumTable();
-    } else {
-      alert("Unknown role. Logging out.");
-      clearCurrentUser();
-      showSection("login");
+
+    switch (user.role) {
+      case "admin":
+        showSection("adminDashboard");
+        setupAdminDashboard(user);
+        notify(`Welcome Admin ${user.username}`);
+        break;
+      case "patient":
+        showSection("patientDashboard");
+        setupPatientDashboard(user);
+        notify(`Welcome, ${user.username}`);
+        break;
+      case "physician":
+        showSection("physicianDashboard");
+        setupPhysicianDashboard(user);
+        notify(`Welcome Dr. ${user.username}`);
+        break;
+      default:
+        alert("Unknown user role.");
+        clearCurrentUser();
+        showSection("login");
     }
   }
 
-  // --- Patient Dashboard Logic ---
-  function setDobRange() {
-    if (!patientDobInput) return;
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, "0");
-    const dd = String(today.getDate()).padStart(2, "0");
-    patientDobInput.max = `${yyyy}-${mm}-${dd}`;
-    patientDobInput.min = `${yyyy - 150}-${mm}-${dd}`;
-  }
+  // --- Admin Dashboard functions ---
+  function setupAdminDashboard(user) {
+    adminNameEl.textContent = user.username;
 
-  function renderPatientDashboard(user) {
-    patientNameEl.textContent = user.username;
-    setDobRange();
+    renderSanatoriumTable();
 
-    // Retrieve or create patient record
-    let patients = getPatients();
-    let patientData = patients.find(p => p.patientId.toLowerCase() === user.username.toLowerCase());
-    if (!patientData) {
-      patientData = { patientId: user.username, name: user.username, dob: "", allergies: "" };
-      patients.push(patientData);
-      savePatients(patients);
-    }
-    patientDobInput.value = patientData.dob;
-    patientAllergiesInput.value = patientData.allergies;
-
-    renderPatientAppointments(user.username);
-
-    // Clear data sharing input/status
-    if (sanatoriumCodeInput) sanatoriumCodeInput.value = "";
-    if (dataSharingStatus) {
-      dataSharingStatus.textContent = "";
-      dataSharingStatus.className = "";
-    }
-  }
-
-  patientDataForm.addEventListener("submit", e => {
-    e.preventDefault();
-    patientUpdateStatus.textContent = "";
-    patientUpdateStatus.className = "";
-
-    if (!currentUser || currentUser.role !== "patient") return;
-
-    const dob = patientDobInput.value;
-    const allergies = patientAllergiesInput.value.trim();
-
-    if (dob && new Date(dob) > new Date()) {
-      patientUpdateStatus.textContent = "Date of Birth cannot be in the future.";
-      patientUpdateStatus.className = "error";
-      return;
-    }
-
-    let patients = getPatients();
-    const index = patients.findIndex(p => p.patientId.toLowerCase() === currentUser.username.toLowerCase());
-    if (index < 0) return;
-
-    patients[index].dob = dob;
-    patients[index].allergies = allergies;
-    savePatients(patients);
-
-    patientUpdateStatus.textContent = "Health data updated successfully.";
-    patientUpdateStatus.className = "success";
-  });
-
-  // --- Patient Appointments ---
-  function renderPatientAppointments(patientId) {
-    const appointments = getAppointments();
-    const filtered = appointments.filter(a => a.patientId.toLowerCase() === patientId.toLowerCase());
-
-    patientAppointmentsList.innerHTML = "";
-    if (filtered.length === 0) {
-      patientAppointmentsList.innerHTML = "<li>No upcoming appointments.</li>";
-      return;
-    }
-
-    filtered.sort((a, b) => new Date(a.date + "T" + a.time) - new Date(b.date + "T" + b.time));
-    filtered.forEach(appt => {
-      const li = document.createElement("li");
-      li.textContent = `${appt.date} at ${appt.time}`;
-      patientAppointmentsList.appendChild(li);
-    });
-  }
-
-  patientAppointmentForm.addEventListener("submit", e => {
-    e.preventDefault();
-    patientAppointmentStatus.textContent = "";
-    patientAppointmentStatus.className = "";
-
-    if (!currentUser || currentUser.role !== "patient") return;
-
-    const date = patientAppointmentDate.value;
-    const time = patientAppointmentTime.value;
-
-    if (!date || !time) {
-      patientAppointmentStatus.textContent = "Please fill all fields.";
-      patientAppointmentStatus.className = "error";
-      return;
-    }
-    if (new Date(date + "T" + time) < new Date()) {
-      patientAppointmentStatus.textContent = "Cannot schedule in the past.";
-      patientAppointmentStatus.className = "error";
-      return;
-    }
-
-    let appointments = getAppointments();
-    if (appointments.find(appt => appt.patientId.toLowerCase() === currentUser.username.toLowerCase() && appt.date === date && appt.time === time)) {
-      patientAppointmentStatus.textContent = "Appointment conflict detected.";
-      patientAppointmentStatus.className = "error";
-      return;
-    }
-
-    appointments.push({ patientId: currentUser.username, date, time });
-    saveAppointments(appointments);
-
-    patientAppointmentDate.value = "";
-    patientAppointmentTime.value = "";
-    patientAppointmentStatus.textContent = "Appointment scheduled successfully.";
-    patientAppointmentStatus.className = "success";
-
-    renderPatientAppointments(currentUser.username);
-  });
-
-  patientRefreshBtn && patientRefreshBtn.addEventListener("click", () => {
-    if (currentUser && currentUser.role === "patient") renderPatientAppointments(currentUser.username);
-  });
-
-  // --- Patient Data Sharing to Sanatorium by code ---
-  dataSharingForm.addEventListener("submit", e => {
-    e.preventDefault();
-    if (!currentUser || currentUser.role !== "patient") return;
-
-    const code = sanatoriumCodeInput.value.trim();
-    if (!code) {
-      dataSharingStatus.textContent = "Please enter a sanatorium code.";
-      dataSharingStatus.className = "error";
-      return;
-    }
-
-    const sanatoriums = getSanatoriums();
-    const found = sanatoriums.find(snt => snt.code.toUpperCase() === code.toUpperCase());
-    if (!found) {
-      dataSharingStatus.textContent = "Invalid code. No such sanatorium registered.";
-      dataSharingStatus.className = "error";
-      return;
-    }
-
-    // Save patient's consent (overwrite for demo simplicity)
-    saveSanatoriumConsent(currentUser.username.toLowerCase(), [found.name + " (" + found.code + ")"]);
-    dataSharingStatus.textContent = `Your data has been sent to: ${found.name} (code: ${found.code})`;
-    dataSharingStatus.className = "success";
-    sanatoriumCodeInput.value = "";
-  });
-
-  // --- Admin dashboard logic ---
-  function generateSanatoriumCode() {
-    return "SNT" + Math.floor(1000 + Math.random() * 9000);
-  }
-
-  function renderSanatoriumTable() {
-    if (!sanatoriumListAdmin) return;
-    const sanatoriums = getSanatoriums();
-    sanatoriumListAdmin.innerHTML = "";
-    sanatoriums.forEach(snt => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${snt.name}</td><td>${snt.code}</td>`;
-      sanatoriumListAdmin.appendChild(tr);
-    });
-  }
-
-  if (adminSanatoriumForm) {
-    adminSanatoriumForm.addEventListener("submit", e => {
+    adminSanatoriumForm.onsubmit = (e) => {
       e.preventDefault();
-      const name = adminSanatoriumName.value.trim();
+      adminSanatoriumStatus.textContent = "";
+      const name = adminSanatoriumNameInput.value.trim();
+
       if (!name) {
-        adminSanatoriumStatus.textContent = "Please enter a sanatorium name.";
+        adminSanatoriumStatus.textContent = "Sanatorium name cannot be empty.";
         adminSanatoriumStatus.className = "error";
         return;
       }
+
       let sanatoriums = getSanatoriums();
-      if (sanatoriums.some(s => s.name.toLowerCase() === name.toLowerCase())) {
-        adminSanatoriumStatus.textContent = "Sanatorium already exists.";
+
+      // Only one sanatorium per admin
+      if (sanatoriums.some(s => s.adminUsername?.toLowerCase() === user.username.toLowerCase())) {
+        adminSanatoriumStatus.textContent = "You can register only one sanatorium.";
         adminSanatoriumStatus.className = "error";
         return;
       }
-      const code = generateSanatoriumCode();
-      sanatoriums.push({ name, code });
+      if (sanatoriums.some(s => s.name.toLowerCase() === name.toLowerCase())) {
+        adminSanatoriumStatus.textContent = "Sanatorium name already exists.";
+        adminSanatoriumStatus.className = "error";
+        return;
+      }
+
+      let code;
+      do {
+        code = generateSanatoriumCode();
+      } while (sanatoriums.find(s => s.code === code));
+
+      sanatoriums.push({ name, code, adminUsername: user.username });
       saveSanatoriums(sanatoriums);
       renderSanatoriumTable();
-      adminSanatoriumStatus.textContent = `Sanatorium added! Code: ${code}`;
-      adminSanatoriumStatus.className = "success";
-      adminSanatoriumName.value = "";
-    });
-  }
 
-  if (adminForwardForm) {
-    adminForwardForm.addEventListener("submit", e => {
+      adminSanatoriumStatus.textContent = `Sanatorium added with code: ${code}`;
+      adminSanatoriumStatus.className = "success";
+      adminSanatoriumNameInput.value = "";
+    };
+
+    adminForwardForm.onsubmit = (e) => {
       e.preventDefault();
-      const uname = adminForwardUser.value.trim().toLowerCase();
+      adminForwardStatus.textContent = "";
+      const patient = adminForwardUser.value.trim().toLowerCase();
       const code = adminForwardCode.value.trim();
-      if (!uname || !code) {
-        adminForwardStatus.textContent = "Fill both patient username and sanatorium code.";
+
+      if (!patient || !code) {
+        adminForwardStatus.textContent = "Fill both Patient Username and Sanatorium Code.";
         adminForwardStatus.className = "error";
         return;
       }
       const sanatoriums = getSanatoriums();
-      const snt = sanatoriums.find(s => s.code.toUpperCase() === code.toUpperCase());
-      if (!snt) {
-        adminForwardStatus.textContent = "Sanatorium code not found.";
+      const san = sanatoriums.find(s => s.code.toUpperCase() === code.toUpperCase());
+
+      if (!san) {
+        adminForwardStatus.textContent = "Invalid Sanatorium Code.";
         adminForwardStatus.className = "error";
         return;
       }
-      // Overwrite patient's consent (for demo simplicity)
-      saveSanatoriumConsent(uname, [snt.name + " (" + snt.code + ")"]);
-      adminForwardStatus.textContent = `Patient data for ${uname} sent to: ${snt.name} (${snt.code})`;
+      // Manage consents here (for demo just notify)
+      adminForwardStatus.textContent = `Patient data forwarded to sanatorium ${san.name} (code: ${san.code})`;
       adminForwardStatus.className = "success";
+
       adminForwardUser.value = "";
       adminForwardCode.value = "";
+    };
+  }
+  function renderSanatoriumTable() {
+    if (!sanatoriumListAdmin) return;
+    const sanatoriums = getSanatoriums();
+    sanatoriumListAdmin.innerHTML = "";
+
+    if (sanatoriums.length === 0) {
+      sanatoriumListAdmin.innerHTML = `<tr><td colspan="2" style="text-align:center;">No sanatoriums registered yet.</td></tr>`;
+      return;
+    }
+
+    sanatoriums.forEach(snt => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${escapeHtml(snt.name)}</td><td>${escapeHtml(snt.code)}</td>`;
+      sanatoriumListAdmin.appendChild(tr);
     });
   }
 
-  // --- Physician Dashboard logic ---
-  function renderPhysicianDashboard(user) {
+  // --- Patient Dashboard functions ---
+  function setupPatientDashboard(user) {
+    patientNameEl.textContent = user.username;
+
+    // Load or create patient health data
+    let patients = getPatients();
+    let patientData = patients.find(p => p.patientId && p.patientId.toLowerCase() === user.username.toLowerCase());
+    if (!patientData) {
+      patientData = { patientId: user.username, dob: "", allergies: "" };
+      patients.push(patientData);
+      savePatients(patients);
+    }
+    patientDobInput.value = patientData.dob || "";
+    patientAllergiesInput.value = patientData.allergies || "";
+
+    renderPatientAppointments(user.username);
+
+    patientDataForm.onsubmit = (e) => {
+      e.preventDefault();
+      patientUpdateStatus.textContent = "";
+
+      const dob = patientDobInput.value;
+      if (dob && new Date(dob) > new Date()) {
+        patientUpdateStatus.textContent = "Date of Birth cannot be in the future.";
+        patientUpdateStatus.className = "error";
+        return;
+      }
+
+      const allergies = patientAllergiesInput.value.trim();
+
+      // Save data
+      let patients = getPatients();
+      const idx = patients.findIndex(p => p.patientId.toLowerCase() === user.username.toLowerCase());
+      if (idx >= 0) {
+        patients[idx].dob = dob;
+        patients[idx].allergies = allergies;
+      } else {
+        patients.push({ patientId: user.username, dob, allergies });
+      }
+      savePatients(patients);
+
+      patientUpdateStatus.textContent = "Health data updated.";
+      patientUpdateStatus.className = "success";
+    };
+
+    patientAppointmentForm.onsubmit = (e) => {
+      e.preventDefault();
+      patientAppointmentStatus.textContent = "";
+
+      const date = patientAppointmentDate.value;
+      const time = patientAppointmentTime.value;
+
+      if (!date || !time) {
+        patientAppointmentStatus.textContent = "Please enter both date and time.";
+        patientAppointmentStatus.className = "error";
+        return;
+      }
+
+      if (new Date(`${date}T${time}`) < new Date()) {
+        patientAppointmentStatus.textContent = "Cannot schedule appointment in the past.";
+        patientAppointmentStatus.className = "error";
+        return;
+      }
+
+      let appointments = getAppointments();
+      if (appointments.find(a => a.patientId.toLowerCase() === user.username.toLowerCase() && a.date === date && a.time === time)) {
+        patientAppointmentStatus.textContent = "You already have an appointment at this time.";
+        patientAppointmentStatus.className = "error";
+        return;
+      }
+
+      appointments.push({ patientId: user.username, date, time });
+      saveAppointments(appointments);
+
+      patientAppointmentStatus.textContent = "Appointment scheduled.";
+      patientAppointmentStatus.className = "success";
+
+      patientAppointmentDate.value = "";
+      patientAppointmentTime.value = "";
+
+      renderPatientAppointments(user.username);
+    };
+
+    deleteMyDataBtn && deleteMyDataBtn.addEventListener("click", () => {
+      if (!confirm("This will permanently delete all your data and cannot be undone. Continue?")) return;
+
+      // Delete health data
+      let patients = getPatients();
+      patients = patients.filter(p => p.patientId.toLowerCase() !== user.username.toLowerCase());
+      savePatients(patients);
+
+      // Delete appointments
+      let appointments = getAppointments();
+      appointments = appointments.filter(a => a.patientId.toLowerCase() !== user.username.toLowerCase());
+      saveAppointments(appointments);
+
+      // Delete consents
+      let consents = getConsents();
+      delete consents[user.username.toLowerCase()];
+      saveConsents(consents);
+
+      // Clear UI & Log out
+      dataDeletionStatus.textContent = "All your data has been deleted.";
+      dataDeletionStatus.className = "success";
+
+      setTimeout(() => {
+        clearCurrentUser();
+        clearFormsAndMessages();
+        showSection("register");
+      }, 2000);
+    });
+
+    dataSharingForm.onsubmit = (e) => {
+      e.preventDefault();
+      dataSharingStatus.textContent = "";
+
+      const code = sanatoriumCodeInput.value.trim();
+
+      if (!code) {
+        dataSharingStatus.textContent = "Please enter a sanatorium code.";
+        dataSharingStatus.className = "error";
+        return;
+      }
+
+      const sanatoriums = getSanatoriums();
+      const found = sanatoriums.find(s => s.code.toUpperCase() === code.toUpperCase());
+
+      if (!found) {
+        dataSharingStatus.textContent = "Sanatorium code not found.";
+        dataSharingStatus.className = "error";
+        return;
+      }
+
+      let consents = getConsents();
+      if (!consents[user.username.toLowerCase()]) consents[user.username.toLowerCase()] = [];
+      if (!consents[user.username.toLowerCase()].includes(found.name + " (" + found.code + ")")) {
+        consents[user.username.toLowerCase()].push(found.name + " (" + found.code + ")");
+      }
+      saveConsents(consents);
+
+      dataSharingStatus.textContent = `Data shared with sanatorium: ${found.name} (${found.code})`;
+      dataSharingStatus.className = "success";
+      sanatoriumCodeInput.value = "";
+    };
+
+    patientRefreshBtn && patientRefreshBtn.addEventListener("click", () => {
+      renderPatientAppointments(user.username);
+    });
+  }
+
+  function renderPatientAppointments(username) {
+    const appts = getAppointments().filter(a => a.patientId.toLowerCase() === username.toLowerCase());
+    patientAppointmentsList.innerHTML = "";
+
+    if (appts.length === 0) {
+      patientAppointmentsList.innerHTML = "<li>No upcoming appointments.</li>";
+      return;
+    }
+
+    appts.sort((a, b) => new Date(a.date + "T" + a.time) - new Date(b.date + "T" + b.time));
+
+    appts.forEach(appt => {
+      const li = document.createElement("li");
+      li.style.marginBottom = "0.5rem";
+
+      li.textContent = `${appt.date} at ${appt.time} `;
+
+      const btn = document.createElement("button");
+      btn.textContent = "Cancel";
+      btn.className = "cancelApptBtn";
+      btn.setAttribute("aria-label", `Cancel appointment on ${appt.date} at ${appt.time}`);
+      btn.addEventListener("click", () => {
+        if (confirm(`Cancel your appointment on ${appt.date} at ${appt.time}?`)) {
+          let appointments = getAppointments();
+          appointments = appointments.filter(a => !(a.patientId.toLowerCase() === username.toLowerCase() && a.date === appt.date && a.time === appt.time));
+          saveAppointments(appointments);
+          notify("Appointment cancelled.");
+          renderPatientAppointments(username);
+        }
+      });
+
+      li.appendChild(btn);
+      patientAppointmentsList.appendChild(li);
+    });
+  }
+
+  // --- Physician dashboard (basic placeholder) ---
+  function setupPhysicianDashboard(user) {
     physicianNameEl.textContent = user.username;
+    physicianVerificationStatus.textContent = user.verified ? "" : "Account pending verification.";
 
     if (!user.verified) {
-      physicianVerificationStatus.textContent = "Your account is pending verification. Access is restricted.";
       physicianPatientTableBody.innerHTML = "";
       physicianPatientDetails.innerHTML = "";
       return;
     }
-    physicianVerificationStatus.textContent = "";
-    renderPhysicianPatients();
-  }
 
-  function renderPhysicianPatients() {
-    physicianPatientTableBody.innerHTML = "";
-    physicianPatientDetails.innerHTML = "";
-    const patients = getPatients();
-    if (patients.length === 0) {
-      physicianPatientTableBody.innerHTML = "<tr><td colspan='5' style='text-align:center;'>No patients found.</td></tr>";
-      return;
-    }
-    for (const p of patients) {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${p.patientId}</td>
-        <td>${p.name || "(no name)"}</td>
-        <td>${p.dob || "-"}</td>
-        <td>${p.allergies || "-"}</td>
-        <td><button data-patient-id="${p.patientId}">View Details</button></td>
-      `;
-      physicianPatientTableBody.appendChild(tr);
-    }
-    [...physicianPatientTableBody.querySelectorAll("button")].forEach(btn => {
-      btn.addEventListener("click", e => {
-        const pid = e.target.getAttribute("data-patient-id");
-        showPhysicianPatientDetails(pid);
-      });
-    });
-  }
-
-  function showPhysicianPatientDetails(patientId) {
-    const patients = getPatients();
-    const patient = patients.find(p => p.patientId === patientId);
-    if (!patient) return;
-    let html = `
-      <h3>Details for Patient: ${patient.patientId}</h3>
-      <p><strong>Name:</strong> ${patient.name || "(none)"}</p>
-      <p><strong>Date of Birth:</strong> ${patient.dob || "-"}</p>
-      <p><strong>Allergies:</strong> ${patient.allergies || "-"}</p>
-    `;
-    const sanatoriums = getSanatoriumConsent(patientId.toLowerCase());
-    if (sanatoriums.length > 0) {
-      html += "<p><strong>Authorized Sanatorium(s):</strong></p><ul>";
-      sanatoriums.forEach(s => {
-        html += `<li>${s}</li>`;
-      });
-      html += "</ul>";
-    } else {
-      html += "<p><em>No sanatorium consent data.</em></p>";
-    }
-
-    const appointments = getAppointments();
-    const appts = appointments.filter(a => a.patientId === patientId);
-    if (appts.length === 0) {
-      html += "<p><em>No appointments scheduled.</em></p>";
-    } else {
-      html += "<p><strong>Appointments:</strong></p><ul>";
-      appts.forEach(a => {
-        html += `<li>${a.date} at ${a.time}</li>`;
-      });
-      html += "</ul>";
-    }
-    physicianPatientDetails.innerHTML = html;
+    // In a real app, physician's patient list and messaging would be loaded here
   }
 
   physicianRefreshBtn && physicianRefreshBtn.addEventListener("click", () => {
     if (currentUser && currentUser.role === "physician" && currentUser.verified) {
-      renderPhysicianPatients();
+      setupPhysicianDashboard(currentUser);
     }
   });
+  physicianLogoutBtn && physicianLogoutBtn.addEventListener("click", () => {
+    clearCurrentUser();
+    clearFormsAndMessages();
+    showSection("login");
+  });
 
-  // --- On page load ---
+  // Set Date of Birth input range on load
+  function setDobRange() {
+    const input = patientDobInput;
+    if (!input) return;
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const dd = String(today.getDate()).padStart(2, "0");
+    input.max = `${yyyy}-${mm}-${dd}`;
+    input.min = `${yyyy - 150}-${mm}-${dd}`;
+  }
+
+  // On page load
   window.addEventListener("DOMContentLoaded", () => {
-    const user = loadCurrentUser();
-    if (user) {
-      initDashboardForUser(user);
+    setDobRange();
+    const usr = loadCurrentUser();
+    if (usr) {
+      currentUser = usr;
+      initDashboardForUser(usr);
     } else {
       showSection("register");
     }
-    setDobRange();
+    updateNotificationUI();
   });
+
 })();
