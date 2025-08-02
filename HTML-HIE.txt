@@ -126,10 +126,12 @@
         <option value="" disabled selected>Choose a role</option>
         <option value="patient">Patient</option>
         <option value="physician">Physician</option>
+        <option value="admin">Admin</option>
       </select>
       <div id="registerRoleError" class="error" role="alert" aria-live="assertive"></div>
       <div id="roleHelp" style="font-size: 0.9rem; margin-top: 3px; color: #555;">
-        If you are a physician, please provide your license number below for verification.
+        If you are a physician, please provide your license number below for verification.<br />
+        If you are an admin, no extra info required.
       </div>
 
       <div id="physicianVerificationFields" class="hidden" style="margin-top: 15px;">
@@ -146,7 +148,10 @@
       <div id="registerStatus" role="alert" aria-live="assertive"></div>
     </form>
 
-    <p style="margin-top: 15px;">Already have an account? <button id="showLoginBtn" style="color: #2563eb; background:none; border:none; cursor:pointer; text-decoration: underline;">Login here</button></p>
+    <p style="margin-top: 15px;">
+      Already have an account? 
+      <button id="showLoginBtn" style="color: #2563eb; background:none; border:none; cursor:pointer; text-decoration: underline;">Login here</button>
+    </p>
   </section>
 
   <!-- Login Page -->
@@ -165,7 +170,39 @@
       <div id="loginStatus" role="alert" aria-live="assertive"></div>
     </form>
 
-    <p style="margin-top: 15px;">Don't have an account? <button id="showRegisterBtn" style="color: #2563eb; background:none; border:none; cursor:pointer; text-decoration: underline;">Register here</button></p>
+    <p style="margin-top: 15px;">
+      Don't have an account? 
+      <button id="showRegisterBtn" style="color: #2563eb; background:none; border:none; cursor:pointer; text-decoration: underline;">Register here</button>
+    </p>
+  </section>
+
+  <!-- Admin Dashboard: Sanatorium Management -->
+  <section id="adminDashboard" class="section hidden" aria-label="Admin Dashboard">
+    <h2>Welcome, <span id="adminName"></span> (Admin)</h2>
+
+    <h3>Register Sanatorium</h3>
+    <form id="adminSanatoriumForm">
+      <label for="adminSanatoriumName">Sanatorium Name</label>
+      <input id="adminSanatoriumName" required placeholder="e.g. Riverside Clinic" />
+      <button type="submit">Add Sanatorium</button>
+      <div id="adminSanatoriumStatus" class="success" style="margin-top: 8px;"></div>
+    </form>
+
+    <h3>Registered Sanatoriums</h3>
+    <table style="max-width: 500px;">
+      <thead><tr><th>Name</th><th>Code</th></tr></thead>
+      <tbody id="sanatoriumListAdmin"></tbody>
+    </table>
+
+    <h3 style="margin-top:2em;">Forward Patient Data</h3>
+    <form id="adminForwardForm">
+      <label for="adminForwardUser">Patient Username</label>
+      <input id="adminForwardUser" required placeholder="e.g. johndoe" />
+      <label for="adminForwardCode">Sanatorium Code</label>
+      <input id="adminForwardCode" required placeholder="Paste sanatorium code"/>
+      <button type="submit">Send Data</button>
+      <div id="adminForwardStatus" class="success" style="margin-top:8px"></div>
+    </form>
   </section>
 
   <!-- Patient Dashboard -->
@@ -176,21 +213,18 @@
 
     <h3>Your Health Data</h3>
     <div id="patientHealthData">
-      <!-- Editable health data form -->
       <form id="patientDataForm" novalidate>
         <div style="max-width: 320px; margin-bottom: 1rem;">
           <label for="patientDob">Date of Birth <span aria-hidden="true" style="color:red;">*</span></label>
-          <input id="patientDob" type="date" placeholder="Select your birth date" aria-describedby="dobHelp" required />
+          <input id="patientDob" type="date" aria-describedby="dobHelp" required />
           <small id="dobHelp" style="color:#555; font-size: 0.9rem;">
             Select your birth date (between 150 years ago and today).
           </small>
         </div>
-
         <div style="max-width: 480px; margin-bottom: 1rem;">
           <label for="patientAllergies">Allergies</label>
           <input id="patientAllergies" type="text" placeholder="List any allergies (comma separated)" />
         </div>
-
         <button type="submit" style="max-width: 140px; margin-top: 10px;">Update Health Data</button>
         <div id="patientUpdateStatus" role="alert" aria-live="assertive" style="margin-top:8px;"></div>
       </form>
@@ -198,32 +232,13 @@
 
     <hr style="margin: 2rem 0;" />
 
-    <h3>Share Personal Data with Sanatoriums</h3>
+    <h3>Share Personal Data with Sanatorium (by Code)</h3>
     <form id="dataSharingForm" novalidate>
       <p style="max-width: 500px; color: #444; margin-bottom: 10px;">
-        Select the sanatorium(s) you authorize to access your personal and health information:
+        Enter the sanatorium code provided by your healthcare provider:
       </p>
-      <div id="sanatoriumList" style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 1rem;">
-        <!-- Example sanatoriums as checkboxes -->
-        <label style="background: #f3f4f6; padding: 8px 12px; border-radius: 6px; cursor: pointer;">
-          <input type="checkbox" name="sanatorium" value="Central Sanatorium" />
-          Central Sanatorium
-        </label>
-        <label style="background: #f3f4f6; padding: 8px 12px; border-radius: 6px; cursor: pointer;">
-          <input type="checkbox" name="sanatorium" value="Lakeside Clinic" />
-          Lakeside Clinic
-        </label>
-        <label style="background: #f3f4f6; padding: 8px 12px; border-radius: 6px; cursor: pointer;">
-          <input type="checkbox" name="sanatorium" value="Mountain Health Center" />
-          Mountain Health Center
-        </label>
-        <label style="background: #f3f4f6; padding: 8px 12px; border-radius: 6px; cursor: pointer;">
-          <input type="checkbox" name="sanatorium" value="Riverside Medical" />
-          Riverside Medical
-        </label>
-      </div>
-
-      <button type="submit" style="max-width: 180px;">Send Data to Selected</button>
+      <input id="sanatoriumCodeInput" placeholder="Enter code, e.g. SNT1234" required style="max-width: 300px;" />
+      <button type="submit" style="max-width: 180px;">Send Data</button>
       <div id="dataSharingStatus" role="alert" aria-live="assertive" style="margin-top:8px;"></div>
     </form>
 
@@ -248,11 +263,8 @@
   <!-- Physician Dashboard -->
   <section id="physicianDashboard" class="section hidden" aria-label="Physician Dashboard">
     <h2>Welcome, Dr. <span id="physicianName"></span> (Physician)</h2>
-
     <div id="physicianVerificationStatus" style="color:#b91c1c; font-weight:700;"></div>
-
     <button id="physicianRefreshBtn" style="max-width: 160px; margin-bottom: 20px;">Refresh Patient List</button>
-
     <h3>Patient Records</h3>
     <table aria-label="Patient records">
       <thead>
@@ -264,9 +276,7 @@
         <!-- Filled dynamically -->
       </tbody>
     </table>
-
     <div id="physicianPatientDetails" style="margin-top: 20px;" aria-live="polite"></div>
-
     <button id="physicianLogoutBtn" style="margin-top: 30px; background:#b91c1c;">Logout</button>
   </section>
 
