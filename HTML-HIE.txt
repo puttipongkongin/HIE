@@ -1,4 +1,3 @@
-
 <html lang="en" >
 <head>
   <meta charset="UTF-8" />
@@ -11,7 +10,7 @@
       margin: 0; padding: 20px; max-width: 900px; margin-left: auto; margin-right: auto;
       color: #111;
     }
-    h1, h2 {
+    h1, h2, h3, h4 {
       color: #222;
     }
     label {
@@ -19,7 +18,7 @@
       display: block;
       margin-top: 15px;
     }
-    input, select, button {
+    input, select, button, textarea {
       width: 100%;
       max-width: 300px;
       padding: 10px;
@@ -27,6 +26,12 @@
       border: 1px solid #ccc;
       border-radius: 5px;
       font-size: 1rem;
+      font-family: Arial, Helvetica, sans-serif;
+      box-sizing: border-box;
+    }
+    textarea {
+      resize: vertical;
+      max-width: 600px;
     }
     button {
       cursor: pointer;
@@ -66,9 +71,13 @@
     }
     nav {
       margin-bottom: 30px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      position: relative;
     }
     nav button {
-      margin-right: 10px;
       max-width: 140px;
     }
     table {
@@ -79,6 +88,8 @@
     th, td {
       border: 1px solid #ddd;
       padding: 10px;
+      vertical-align: middle;
+      text-align: left;
     }
     th {
       background-color: #efefef;
@@ -86,16 +97,92 @@
     ul {
       padding-left: 20px;
       margin-top: 6px;
+      max-width: 600px;
+      list-style-type: disc;
     }
-    #appointmentNotificationIcon {
-      background-color: #dc2626;
+    /* Cancel appointment button style */
+    .cancelApptBtn {
+      background-color: #b91c1c;
+      max-width: 90px;
+      font-size: 0.9rem;
+      padding: 6px 10px;
       color: white;
-      display: inline-block;
-      padding: 4px 9px;
-      border-radius: 20px;
-      font-weight: 700;
-      margin-left: 10px;
+      border-radius: 4px;
+    }
+    .cancelApptBtn:hover {
+      background-color: #7f1d1d;
+    }
+    /* Accessibility focus */
+    input:focus, select:focus, button:focus, textarea:focus {
+      outline: 2px solid #2563eb;
+      outline-offset: 2px;
+    }
+    /* Responsive */
+    @media (max-width: 600px) {
+      body {
+        padding: 10px;
+      }
+      input, select, button, textarea {
+        max-width: 100%;
+      }
+      nav button {
+        max-width: 100%;
+        margin-bottom: 10px;
+      }
+      table {
+        font-size: 0.9rem;
+      }
+    }
+    /* Notification Bell & Dropdown */
+    #notificationBell {
+      position: relative;
+      padding: 6px 10px;
+      border-radius: 5px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-size: 1.2rem;
       user-select: none;
+    }
+    #notificationCount {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      background: red;
+      color: white;
+      font-weight: bold;
+      font-size: 0.75rem;
+      border-radius: 50%;
+      padding: 0 6px;
+      display: none;
+      pointer-events: none;
+    }
+    #notificationDropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      background: white;
+      border: 1px solid #ccc;
+      max-height: 200px;
+      overflow-y: auto;
+      width: 320px;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+      z-index: 1000;
+      display: none;
+    }
+    #notificationDropdown ul {
+      list-style: none;
+      margin: 0;
+      padding: 0.5rem;
+      font-size: 0.9rem;
+    }
+    #notificationDropdown ul li {
+      padding: 6px;
+      border-bottom: 1px solid #eee;
+    }
+    #notificationDropdown ul li:last-child {
+      border-bottom: none;
     }
   </style>
 </head>
@@ -103,26 +190,35 @@
 
   <h1>Health Info Exchange</h1>
 
-  <!-- Navigation for logged in users -->
+  <div id="notificationArea" aria-live="polite" role="region" style="margin-bottom: 1rem;"></div>
+
   <nav id="nav" class="hidden" aria-label="User navigation">
-    <button id="dashboardBtn">Dashboard</button>
-    <button id="logoutBtn">Logout</button>
+    <button id="dashboardBtn" aria-label="Go to dashboard">Dashboard</button>
+    <button id="logoutBtn" aria-label="Logout and end session">Logout</button>
+    <button id="notificationBell" aria-label="Notifications" aria-haspopup="true" aria-expanded="false" aria-controls="notificationDropdown">🔔
+      <span id="notificationCount"></span>
+    </button>
+    <div id="notificationDropdown" role="region" aria-label="Notifications">
+      <ul id="notificationList"></ul>
+    </div>
   </nav>
 
-  <!-- Registration Page -->
-  <section id="registerSection" class="section" aria-label="User Registration">
+  <!-- Registration -->
+  <section id="registerSection" class="section" aria-label="User Registration" role="form">
     <h2>Register</h2>
     <form id="registerForm" novalidate>
       <label for="registerUsername">Username <span aria-hidden="true" style="color:red;">*</span></label>
-      <input id="registerUsername" name="username" type="text" autocomplete="username" required placeholder="e.g. johndoe" />
+      <input id="registerUsername" name="username" type="text" autocomplete="username" required placeholder="e.g. johndoe" aria-describedby="registerUsernameHelp" aria-invalid="false" />
       <div id="registerUsernameError" class="error" role="alert" aria-live="assertive"></div>
+      <small id="registerUsernameHelp" class="sr-only">Minimum 3 characters required.</small>
 
       <label for="registerPassword">Password <span aria-hidden="true" style="color:red;">*</span></label>
-      <input id="registerPassword" name="password" type="password" autocomplete="new-password" required placeholder="At least 6 characters" />
+      <input id="registerPassword" name="password" type="password" autocomplete="new-password" required placeholder="At least 6 characters" aria-describedby="registerPasswordHelp" aria-invalid="false" />
       <div id="registerPasswordError" class="error" role="alert" aria-live="assertive"></div>
+      <small id="registerPasswordHelp" class="sr-only">Minimum 6 characters required.</small>
 
       <label for="registerRole">Role <span aria-hidden="true" style="color:red;">*</span></label>
-      <select id="registerRole" name="role" required aria-describedby="roleHelp">
+      <select id="registerRole" name="role" required aria-describedby="roleHelp" aria-invalid="false">
         <option value="" disabled selected>Choose a role</option>
         <option value="patient">Patient</option>
         <option value="physician">Physician</option>
@@ -136,87 +232,90 @@
 
       <div id="physicianVerificationFields" class="hidden" style="margin-top: 15px;">
         <label for="licenseNumber">License Number <span aria-hidden="true" style="color:red;">*</span></label>
-        <input id="licenseNumber" name="licenseNumber" type="text" placeholder="e.g. MD123456" autocomplete="off" />
+        <input id="licenseNumber" name="licenseNumber" type="text" placeholder="e.g. MD123456" autocomplete="off" aria-describedby="licenseNumberHelp" aria-invalid="false" />
         <div id="licenseNumberError" class="error" role="alert" aria-live="assertive"></div>
+        <small id="licenseNumberHelp" class="sr-only">Minimum 5 characters required.</small>
 
         <label>
-          <input type="checkbox" id="verifiedCheckbox" /> Simulate Verification (check if verified)
+          <input type="checkbox" id="verifiedCheckbox" aria-checked="false" /> Simulate Verification (check if verified)
         </label>
       </div>
 
-      <button type="submit" id="registerSubmitBtn">Register</button>
+      <button type="submit" id="registerSubmitBtn" aria-live="polite">Register</button>
       <div id="registerStatus" role="alert" aria-live="assertive"></div>
     </form>
 
     <p style="margin-top: 15px;">
       Already have an account? 
-      <button id="showLoginBtn" style="color: #2563eb; background:none; border:none; cursor:pointer; text-decoration: underline;">Login here</button>
+      <button id="showLoginBtn" style="color: #2563eb; background:none; border:none; cursor:pointer; text-decoration: underline;" aria-label="Switch to login form">Login here</button>
     </p>
   </section>
 
-  <!-- Login Page -->
-  <section id="loginSection" class="section hidden" aria-label="User Login">
+  <!-- Login -->
+  <section id="loginSection" class="section hidden" aria-label="User Login" role="form">
     <h2>Login</h2>
     <form id="loginForm" novalidate>
       <label for="loginUsername">Username</label>
-      <input id="loginUsername" name="loginUsername" type="text" autocomplete="username" required placeholder="Your username" />
+      <input id="loginUsername" name="loginUsername" type="text" autocomplete="username" required placeholder="Your username" aria-describedby="loginUsernameHelp" aria-invalid="false" />
       <div id="loginUsernameError" class="error" role="alert" aria-live="assertive"></div>
+      <small id="loginUsernameHelp" class="sr-only">Enter your registered username.</small>
 
       <label for="loginPassword">Password</label>
-      <input id="loginPassword" name="loginPassword" type="password" autocomplete="current-password" required placeholder="Your password" />
+      <input id="loginPassword" name="loginPassword" type="password" autocomplete="current-password" required placeholder="Your password" aria-describedby="loginPasswordHelp" aria-invalid="false" />
       <div id="loginPasswordError" class="error" role="alert" aria-live="assertive"></div>
+      <small id="loginPasswordHelp" class="sr-only">Enter your account password.</small>
 
-      <button type="submit" id="loginSubmitBtn">Login</button>
+      <button type="submit" id="loginSubmitBtn" aria-live="polite">Login</button>
       <div id="loginStatus" role="alert" aria-live="assertive"></div>
     </form>
 
     <p style="margin-top: 15px;">
       Don't have an account? 
-      <button id="showRegisterBtn" style="color: #2563eb; background:none; border:none; cursor:pointer; text-decoration: underline;">Register here</button>
+      <button id="showRegisterBtn" style="color: #2563eb; background:none; border:none; cursor:pointer; text-decoration: underline;" aria-label="Switch to registration form">Register here</button>
     </p>
   </section>
 
-  <!-- Admin Dashboard: Sanatorium Management -->
-  <section id="adminDashboard" class="section hidden" aria-label="Admin Dashboard">
+  <!-- Admin Dashboard -->
+  <section id="adminDashboard" class="section hidden" aria-label="Admin Dashboard" role="region">
     <h2>Welcome, <span id="adminName"></span> (Admin)</h2>
 
     <h3>Register Sanatorium</h3>
-    <form id="adminSanatoriumForm">
+    <form id="adminSanatoriumForm" role="form" aria-describedby="adminSanatoriumStatus">
       <label for="adminSanatoriumName">Sanatorium Name</label>
-      <input id="adminSanatoriumName" required placeholder="e.g. Riverside Clinic" />
-      <button type="submit">Add Sanatorium</button>
-      <div id="adminSanatoriumStatus" class="success" style="margin-top: 8px;"></div>
+      <input id="adminSanatoriumName" required placeholder="e.g. Riverside Clinic" aria-required="true" />
+      <button type="submit" aria-label="Add new sanatorium">Add Sanatorium</button>
+      <div id="adminSanatoriumStatus" class="success" style="margin-top: 8px;" role="alert" aria-live="assertive"></div>
     </form>
 
     <h3>Registered Sanatoriums</h3>
-    <table style="max-width: 500px;">
+    <table style="max-width: 500px;" aria-describedby="sanatoriumListAdmin">
       <thead><tr><th>Name</th><th>Code</th></tr></thead>
       <tbody id="sanatoriumListAdmin"></tbody>
     </table>
 
     <h3 style="margin-top:2em;">Forward Patient Data</h3>
-    <form id="adminForwardForm">
+    <form id="adminForwardForm" role="form" aria-describedby="adminForwardStatus">
       <label for="adminForwardUser">Patient Username</label>
-      <input id="adminForwardUser" required placeholder="e.g. johndoe" />
+      <input id="adminForwardUser" required placeholder="e.g. johndoe" aria-required="true" />
       <label for="adminForwardCode">Sanatorium Code</label>
-      <input id="adminForwardCode" required placeholder="Paste sanatorium code"/>
-      <button type="submit">Send Data</button>
-      <div id="adminForwardStatus" class="success" style="margin-top:8px"></div>
+      <input id="adminForwardCode" required placeholder="Paste sanatorium code" aria-required="true" />
+      <button type="submit" aria-label="Forward patient data to sanatorium">Send Data</button>
+      <div id="adminForwardStatus" class="success" style="margin-top:8px" role="alert" aria-live="assertive"></div>
     </form>
   </section>
 
   <!-- Patient Dashboard -->
-  <section id="patientDashboard" class="section hidden" aria-label="Patient Dashboard">
+  <section id="patientDashboard" class="section hidden" aria-label="Patient Dashboard" role="region">
     <h2>Welcome, <span id="patientName"></span> (Patient)</h2>
 
     <button id="patientRefreshBtn" style="max-width: 140px; margin-bottom: 15px;">Refresh Data</button>
 
     <h3>Your Health Data</h3>
     <div id="patientHealthData">
-      <form id="patientDataForm" novalidate>
+      <form id="patientDataForm" novalidate role="form">
         <div style="max-width: 320px; margin-bottom: 1rem;">
           <label for="patientDob">Date of Birth <span aria-hidden="true" style="color:red;">*</span></label>
-          <input id="patientDob" type="date" aria-describedby="dobHelp" required />
+          <input id="patientDob" type="date" aria-describedby="dobHelp" required aria-required="true" />
           <small id="dobHelp" style="color:#555; font-size: 0.9rem;">
             Select your birth date (between 150 years ago and today).
           </small>
@@ -225,48 +324,56 @@
           <label for="patientAllergies">Allergies</label>
           <input id="patientAllergies" type="text" placeholder="List any allergies (comma separated)" />
         </div>
-        <button type="submit" style="max-width: 140px; margin-top: 10px;">Update Health Data</button>
+        <button type="submit" style="max-width: 140px; margin-top: 10px;" aria-label="Update health data">Update Health Data</button>
         <div id="patientUpdateStatus" role="alert" aria-live="assertive" style="margin-top:8px;"></div>
       </form>
     </div>
 
     <hr style="margin: 2rem 0;" />
 
+    <h3>Privacy and Data Control</h3>
+    <button id="deleteMyDataBtn" style="background:#dc2626; color:white; max-width: 180px;">Delete My Data</button>
+    <div id="dataDeletionStatus" role="alert" aria-live="assertive" style="margin-top:8px;"></div>
+
+    <hr style="margin: 2rem 0;" />
+
     <h3>Share Personal Data with Sanatorium (by Code)</h3>
-    <form id="dataSharingForm" novalidate>
+    <form id="dataSharingForm" novalidate role="form" aria-describedby="dataSharingStatus">
       <p style="max-width: 500px; color: #444; margin-bottom: 10px;">
         Enter the sanatorium code provided by your healthcare provider:
       </p>
-      <input id="sanatoriumCodeInput" placeholder="Enter code, e.g. SNT1234" required style="max-width: 300px;" />
-      <button type="submit" style="max-width: 180px;">Send Data</button>
+      <input id="sanatoriumCodeInput" placeholder="Enter code, e.g. SNT1234" required aria-required="true" aria-invalid="false" style="max-width: 300px;" />
+      <button type="submit" style="max-width: 180px;" aria-label="Send personal data to sanatorium">Send Data</button>
       <div id="dataSharingStatus" role="alert" aria-live="assertive" style="margin-top:8px;"></div>
     </form>
 
     <hr style="margin: 2rem 0;" />
 
     <h3>Your Appointments</h3>
-    <ul id="patientAppointmentsList" style="margin-bottom: 1.5rem;"></ul>
+    <ul id="patientAppointmentsList" style="margin-bottom: 1.5rem;" aria-label="Patient appointments list">
+      <!-- Populated dynamically -->
+    </ul>
 
     <h3>Schedule New Appointment</h3>
-    <form id="patientAppointmentForm" novalidate>
+    <form id="patientAppointmentForm" novalidate role="form" aria-describedby="patientAppointmentStatus">
       <label for="patientAppointmentDate">Date <span aria-hidden="true" style="color:red;">*</span></label>
-      <input id="patientAppointmentDate" type="date" required style="max-width: 180px; margin-bottom: 8px;" />
+      <input id="patientAppointmentDate" type="date" required aria-required="true" style="max-width: 180px; margin-bottom: 8px;" />
 
       <label for="patientAppointmentTime">Time <span aria-hidden="true" style="color:red;">*</span></label>
-      <input id="patientAppointmentTime" type="time" required style="max-width: 180px; margin-bottom: 8px;" />
+      <input id="patientAppointmentTime" type="time" required aria-required="true" style="max-width: 180px; margin-bottom: 8px;" />
 
-      <button type="submit" style="max-width: 140px; margin-top: 10px;">Schedule Appointment</button>
+      <button type="submit" style="max-width: 140px; margin-top: 10px;" aria-label="Schedule Appointment">Schedule Appointment</button>
       <div id="patientAppointmentStatus" role="alert" aria-live="assertive" style="margin-top:8px;"></div>
     </form>
   </section>
 
   <!-- Physician Dashboard -->
-  <section id="physicianDashboard" class="section hidden" aria-label="Physician Dashboard">
+  <section id="physicianDashboard" class="section hidden" aria-label="Physician Dashboard" role="region">
     <h2>Welcome, Dr. <span id="physicianName"></span> (Physician)</h2>
     <div id="physicianVerificationStatus" style="color:#b91c1c; font-weight:700;"></div>
     <button id="physicianRefreshBtn" style="max-width: 160px; margin-bottom: 20px;">Refresh Patient List</button>
     <h3>Patient Records</h3>
-    <table aria-label="Patient records">
+    <table aria-label="Patient records" role="grid">
       <thead>
         <tr>
           <th>Patient ID</th><th>Name</th><th>DOB</th><th>Allergies</th><th>Actions</th>
@@ -276,7 +383,7 @@
         <!-- Filled dynamically -->
       </tbody>
     </table>
-    <div id="physicianPatientDetails" style="margin-top: 20px;" aria-live="polite"></div>
+    <div id="physicianPatientDetails" style="margin-top: 20px;" aria-live="polite" aria-atomic="true"></div>
     <button id="physicianLogoutBtn" style="margin-top: 30px; background:#b91c1c;">Logout</button>
   </section>
 
